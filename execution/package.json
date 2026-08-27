@@ -5,12 +5,14 @@
   "type": "module",
   "description": "Minimal live-execution path: reads via Thetanuts SDK, gate-checks via the Python gate-chain HTTP service, signs and broadcasts on Base mainnet.",
   "scripts": {
+    "smoke-test": "tsx src/smokeTest.ts",
     "execute:micro-trade": "tsx src/executeMicroTrade.ts",
     "prepare:rfq": "tsx src/prepareRfq.ts"
   },
   "dependencies": {
     "@thetanuts-finance/thetanuts-client": "^0.3.0",
-    "ethers": "^6.13.0"
+    "ethers": "^6.13.0",
+    "dotenv": "^16.4.0"
   },
   "devDependencies": {
     "tsx": "^4.16.0",

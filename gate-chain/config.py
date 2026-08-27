@@ -91,8 +91,12 @@ def load_settings() -> Settings:
             ).split(",")
             if item.strip()
         ),
-        max_notional_usd_per_trade=_float_env("MAX_NOTIONAL_USD_PER_TRADE", "25", minimum=0),
-        max_notional_usd_per_day=_float_env("MAX_NOTIONAL_USD_PER_DAY", "100", minimum=0),
+        # Defaults match the Thetanuts builder workshop guidance verbatim:
+        # "1-3 USDC covers you. A 1 USDC fill scores exactly the same as 100."
+        # Raise these deliberately via env if a specific demo trade needs more
+        # -- don't just bump the default because a fill failed the cap.
+        max_notional_usd_per_trade=_float_env("MAX_NOTIONAL_USD_PER_TRADE", "3", minimum=0),
+        max_notional_usd_per_day=_float_env("MAX_NOTIONAL_USD_PER_DAY", "10", minimum=0),
         max_orders_per_day=_int_env("MAX_ORDERS_PER_DAY", "5", minimum=1),
         min_abs_delta=_float_env("MIN_ABS_DELTA", "0.10", minimum=0),
         max_abs_delta=_float_env("MAX_ABS_DELTA", "0.90", minimum=0),

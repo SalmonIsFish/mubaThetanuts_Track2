@@ -15,8 +15,8 @@
  * and OptionBook fillOrder has no prepare_* MCP tool at all (only RFQ
  * write-paths are exposed through MCP; see prepareRfq.ts for that route).
  * This script IS the signer boundary: it is the one place in the whole
- * system that touches PRIVATE_KEY, and it does nothing except (a) ask the
- * gate chain, (b) call the SDK.
+ * system that touches THETANUTS_PRIVATE_KEY, and it does nothing except
+ * (a) ask the gate chain, (b) call the SDK.
  */
 
 import "dotenv/config";
@@ -25,14 +25,17 @@ import { ThetanutsClient } from "@thetanuts-finance/thetanuts-client";
 import { requireReadyForExecution } from "./gateClient.js";
 
 const RPC_URL = process.env.THETANUTS_RPC_URL ?? "https://mainnet.base.org";
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const PRIVATE_KEY = process.env.THETANUTS_PRIVATE_KEY;
 const GATE_SERVICE_URL = process.env.GATE_SERVICE_URL ?? "http://127.0.0.1:8787";
-const HARD_CAP_USD = Number(process.env.MAX_NOTIONAL_USD_HARD_CAP ?? "25");
+const HARD_CAP_USD = Number(process.env.MAX_NOTIONAL_USD_HARD_CAP ?? "3");
 
 // Which underlying/side we're demoing -- override via CLI args for the real run.
+// Default trade size is 2 USDC: "1-3 USDC covers you... a 1 USDC fill scores
+// exactly the same as 100" per the Thetanuts workshop deck -- there's no
+// upside to sizing the demo trade any bigger.
 const TARGET_ASSET = process.argv[2] ?? "ETH";
 const TARGET_TYPE = (process.argv[3] ?? "put").toLowerCase(); // "put" | "call"
-const SPEND_USDC = BigInt(process.argv[4] ?? "10_000000".replace("_", "")); // 10 USDC, 6dp
+const SPEND_USDC = BigInt(process.argv[4] ?? "2000000"); // 2 USDC, 6dp
 
 // NOTE: field paths like `o.metadata?.asset`, `candidate.order.strikes[0]`
 // scaling, and `candidate.metadata?.delta` are inferred from the SDK's prose
@@ -44,7 +47,7 @@ const SPEND_USDC = BigInt(process.argv[4] ?? "10_000000".replace("_", "")); // 1
 // skeleton, not a black box to run unread.
 
 async function main() {
-  if (!PRIVATE_KEY) throw new Error("PRIVATE_KEY not set -- refusing to run without a signer configured explicitly.");
+  if (!PRIVATE_KEY) throw new Error("THETANUTS_PRIVATE_KEY not set -- refusing to run without a signer configured explicitly.");
 
   const spendUsd = Number(SPEND_USDC) / 1_000_000;
   if (spendUsd > HARD_CAP_USD) {

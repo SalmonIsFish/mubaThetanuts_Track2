@@ -28,7 +28,7 @@ import { ethers } from "ethers";
 import { requireReadyForExecution } from "./gateClient.js";
 
 const RPC_URL = process.env.THETANUTS_RPC_URL ?? "https://mainnet.base.org";
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const PRIVATE_KEY = process.env.THETANUTS_PRIVATE_KEY;
 const GATE_SERVICE_URL = process.env.GATE_SERVICE_URL ?? "http://127.0.0.1:8787";
 
 interface PreparedCall {
@@ -60,7 +60,7 @@ interface RfqIntent {
 }
 
 async function submitPreparedRfq(intent: RfqIntent) {
-  if (!PRIVATE_KEY) throw new Error("PRIVATE_KEY not set.");
+  if (!PRIVATE_KEY) throw new Error("THETANUTS_PRIVATE_KEY not set.");
 
   const decision = await requireReadyForExecution(GATE_SERVICE_URL, {
     underlying_symbol: intent.underlying_symbol,
@@ -108,9 +108,9 @@ const EXAMPLE_INTENT: RfqIntent = {
   num_contracts: 1,
   strike: 2800,
   spot_price: 3200,
-  notional_usd: 10,
+  notional_usd: 2, // 1-3 USDC per the workshop deck -- no reason to size a demo trade bigger
   collateral_token: "USDC",
-  required_collateral_amount: 10,
+  required_collateral_amount: 2,
 };
 
 if (import.meta.url === `file://${process.argv[1]}`) {

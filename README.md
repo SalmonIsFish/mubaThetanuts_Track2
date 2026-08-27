@@ -26,6 +26,7 @@ docs/ARCHITECTURE.md          Full design writeup: MCP integration, gate
 docs/RWA_AND_CATEGORIES.md    RWA (Real-World Assets) vs RWA (Risk-Weighted
                                Assets) disambiguation, the asset category
                                taxonomy, and worked RWA examples.
+docs/Thetanuts MUBA Hackathon.pdf   The official builder workshop deck.
 ```
 
 ## Quick start
@@ -42,8 +43,22 @@ export THETANUTS_KEYSTORE_MASTER_KEY=$(openssl rand -hex 32)
 
 # 3. Execution layer (TypeScript) — the signer boundary
 cd ../execution && npm install
-cp .env.example .env   # fill in PRIVATE_KEY (micro-trade wallet only)
-npm run execute:micro-trade -- ETH put 10000000   # 10 USDC, ETH vanilla put
+cp .env.example .env   # fill in THETANUTS_PRIVATE_KEY (fresh micro-trade wallet only)
+npm run smoke-test                                 # no wallet needed -- proves the connection is live
+npm run execute:micro-trade -- ETH put 2000000      # 2 USDC, ETH vanilla put
 ```
 
-See `docs/ARCHITECTURE.md` for why the system is split this way.
+See `docs/ARCHITECTURE.md` for why the system is split this way, and for a
+fit-check against the official MUBA workshop deck (`Thetanuts MUBA
+Hackathon.pdf`) — short version: Track 02 names "an AI strategy or risk
+copilot" as an example almost word for word, and judging is two questions
+("does it work" / "would anyone actually use it"), not more.
+
+## Official resources
+
+Chain: Base mainnet (8453) · RPC: free Alchemy/Infura key, not the public
+endpoint · `npm i -g @thetanuts-finance/cli` for a terminal sanity-check
+(`--dry-run` on every command) · docs.thetanuts.finance/for-builders/sdk is
+the source of truth if anything here goes stale · help: Telegram
+`@ShawnSeanC`, Discord (Thetanuts chatroom in the MUBA server), GitHub
+issues on `thetanuts-sdk`.

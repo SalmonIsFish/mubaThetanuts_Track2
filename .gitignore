@@ -9,3 +9,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .thetanuts/
+
+# Duplicate of docs/Thetanuts MUBA Hackathon.pdf -- the original save location,
+# kept as-is because the sandbox couldn't unlink it after copying into docs/.
+/Thetanuts MUBA Hackathon.pdf

@@ -17,13 +17,13 @@ def base_kwargs(**overrides):
         num_contracts=1,
         strike=2800,
         spot_price=3200,
-        notional_usd=10,
+        notional_usd=2,
         notional_usd_today=0,
         orders_today=0,
         chain_id=8453,
         collateral_token="USDC",
-        posted_collateral_amount=10,
-        required_collateral_amount=10,
+        posted_collateral_amount=2,
+        required_collateral_amount=2,
         delta=-0.35,
     )
     kwargs.update(overrides)
@@ -43,7 +43,9 @@ def test_unknown_underlying_rejected():
 
 
 def test_insufficient_collateral_rejected():
-    result = evaluate_thetanuts_trade(**base_kwargs(posted_collateral_amount=5))
+    result = evaluate_thetanuts_trade(
+        **base_kwargs(posted_collateral_amount=1, required_collateral_amount=2)
+    )
     assert result["decision"] == "BLOCKED"
     assert "collateral_rejected" in result["blockers"]
 
