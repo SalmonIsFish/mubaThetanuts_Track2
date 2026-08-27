@@ -19,9 +19,13 @@ execution/      TypeScript — Thetanuts SDK client, the one place a private
                 signing anything.
 .mcp.json       Wires @thetanuts-finance/mcp into Claude as the copilot's
                 read/strategy tool-calling layer.
-data/           Shariah-reviewed crypto underlying/collateral token universe.
-docs/ARCHITECTURE.md   Full design writeup: MCP integration, gate chain
-                        adaptation, minimal live-execution path.
+data/           Shariah-reviewed crypto underlying/collateral token universe,
+                tagged by category (crypto_native, stablecoin, rwa_debt, ...).
+docs/ARCHITECTURE.md          Full design writeup: MCP integration, gate
+                               chain adaptation, minimal live-execution path.
+docs/RWA_AND_CATEGORIES.md    RWA (Real-World Assets) vs RWA (Risk-Weighted
+                               Assets) disambiguation, the asset category
+                               taxonomy, and worked RWA examples.
 ```
 
 ## Quick start

@@ -5,12 +5,24 @@ Adapted from Ai_Finance_Syariah/backend/shariah_gate.py. Same fail-closed shape
 explicit COMPLIANT record" rule -- just keyed on token symbol instead of an
 equity ticker, and sourced from data/crypto-underlying-universe.json instead
 of the SC Malaysia list.
+
+Category-aware since 2026-08-27: every record carries a `category` (see
+docs/RWA_AND_CATEGORIES.md for the full taxonomy -- crypto_native,
+stablecoin, rwa_debt, rwa_commodity, rwa_real_estate, rwa_equity).
+HARD_REJECT_CATEGORIES below is enforced in code, not just data: a category
+in that set is REJECT even if someone edits the dataset to mark a record
+COMPLIANT by mistake. rwa_debt is the reason this exists -- tokenized
+Treasuries/private credit pay interest by construction (Riba al-Nasiyah),
+which isn't a judgment call the dataset should be able to override with a
+typo or a rushed edit under deadline pressure.
 """
 
 import json
 from pathlib import Path
 
 from config import load_settings
+
+HARD_REJECT_CATEGORIES = frozenset({"rwa_debt"})
 
 
 def _load_dataset() -> dict:
@@ -50,6 +62,15 @@ def check_token(symbol: str, *, role: str = "underlying") -> dict:
     if not record:
         return {"status": "REJECT", "reason": "symbol_not_in_universe", "symbol": normalized_symbol}
 
+    category = record.get("category", "uncategorized")
+    if category in HARD_REJECT_CATEGORIES:
+        return {
+            "status": "REJECT",
+            "reason": "category_structurally_non_compliant",
+            "symbol": normalized_symbol,
+            "category": category,
+        }
+
     record_role = record.get("role", "")
     role_ok = (
         role == "underlying" and record_role in {"underlying", "underlying_or_collateral"}
@@ -79,6 +100,7 @@ def check_token(symbol: str, *, role: str = "underlying") -> dict:
         "reason": "token_compliant" if status == "COMPLIANT" else "token_compliant_conditional",
         "symbol": normalized_symbol,
         "asset_name": record.get("asset_name"),
+        "category": category,
     }
     if status == "COMPLIANT_CONDITIONAL":
         result["restrictions"] = record.get("restrictions", [])

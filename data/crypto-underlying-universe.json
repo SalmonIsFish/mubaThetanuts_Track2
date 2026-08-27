@@ -3,8 +3,8 @@
   "publication_date": "2026-08-27",
   "source": {
     "authority": "Internal Shariah desk review, cross-referenced against Thetanuts V4 supported assets (docs.thetanuts.finance/sdk/getting-started/supported-chains)",
-    "note": "Fail-closed: an asset absent from this file, or not marked COMPLIANT, is treated as REJECT by underlying_screen.py. Extend this list only with a written rationale citing docs/shariah-policy/*.md.",
-    "policy_refs": ["docs/shariah-policy/Riba.md", "docs/shariah-policy/Gharar.md", "docs/shariah-policy/Maysir.md"]
+    "note": "Fail-closed: an asset absent from this file, or not marked COMPLIANT, is treated as REJECT by underlying_screen.py. Extend this list only with a written rationale citing docs/shariah-policy/*.md. `category` drives routing in underlying_screen.py -- see docs/RWA_AND_CATEGORIES.md for the full taxonomy and worked examples.",
+    "policy_refs": ["docs/shariah-policy/Riba.md", "docs/shariah-policy/Gharar.md", "docs/shariah-policy/Maysir.md", "docs/RWA_AND_CATEGORIES.md"]
   },
   "validation": {
     "status": "active"
@@ -14,6 +14,8 @@
       "symbol": "BTC",
       "asset_name": "Bitcoin",
       "role": "underlying",
+      "category": "crypto_native",
+      "tradable_on_thetanuts": true,
       "shariah_status": "COMPLIANT",
       "rationale": "Non-interest-bearing digital commodity; no embedded yield, coupon, or debt claim. Widely reviewed by contemporary Shariah boards as an asset (mal) rather than a Riba-bearing instrument."
     },
@@ -21,6 +23,8 @@
       "symbol": "ETH",
       "asset_name": "Ether",
       "role": "underlying",
+      "category": "crypto_native",
+      "tradable_on_thetanuts": true,
       "shariah_status": "COMPLIANT",
       "rationale": "Native network asset with utility (gas/computation), not a debt instrument. Screen applies to spot ETH only -- see cbETH/wstETH-style rebasing or fixed-yield staking derivatives, which are NOT covered by this record and default-reject."
     },
@@ -28,6 +32,8 @@
       "symbol": "SOL",
       "asset_name": "Solana",
       "role": "underlying",
+      "category": "crypto_native",
+      "tradable_on_thetanuts": true,
       "shariah_status": "COMPLIANT",
       "rationale": "Native network asset, non-interest-bearing. Same caveat as ETH: liquid-staking derivative tokens are separate records, not implicitly covered."
     },
@@ -35,6 +41,8 @@
       "symbol": "cbBTC",
       "asset_name": "Coinbase Wrapped BTC",
       "role": "underlying_or_collateral",
+      "category": "crypto_native",
+      "tradable_on_thetanuts": true,
       "shariah_status": "COMPLIANT",
       "rationale": "1:1 custodial wrapper over BTC with no embedded yield or rehypothecation-for-interest disclosed. Treated as a proxy for spot BTC for screening purposes. Re-review if issuer terms change to include yield."
     },
@@ -42,6 +50,8 @@
       "symbol": "WETH",
       "asset_name": "Wrapped Ether",
       "role": "underlying_or_collateral",
+      "category": "crypto_native",
+      "tradable_on_thetanuts": true,
       "shariah_status": "COMPLIANT",
       "rationale": "1:1 non-custodial wrapper over ETH via smart contract, no yield accrual. Proxy for spot ETH for screening purposes."
     },
@@ -49,9 +59,67 @@
       "symbol": "USDC",
       "asset_name": "USD Coin",
       "role": "collateral_only",
+      "category": "stablecoin",
+      "tradable_on_thetanuts": true,
       "shariah_status": "COMPLIANT_CONDITIONAL",
       "rationale": "Fiat-backed stablecoin used only as a cash-collateral / settlement unit in this system, never held as a yield-bearing position and never supplied to a lending/interest venue by this agent. Conditional on: (1) never routed through Thetanuts loan/CALL_LOAN tools, (2) never deposited to a yield vault by this codebase. collateral_gate.py enforces both.",
       "restrictions": ["no_lending_venues", "no_yield_vaults", "settlement_and_collateral_use_only"]
+    },
+    {
+      "symbol": "BUIDL",
+      "asset_name": "BlackRock USD Institutional Digital Liquidity Fund",
+      "role": "underlying",
+      "category": "rwa_debt",
+      "tradable_on_thetanuts": false,
+      "shariah_status": "REJECT",
+      "rationale": "Tokenized claim on a fund holding US Treasury bills, cash, and repo. The yield paid to holders IS interest (Riba al-Nasiyah) by construction, regardless of the blockchain wrapper. underlying_screen.py hard-rejects every rwa_debt record in code, not just here, so this entry cannot be flipped to PASS by editing this file alone -- see check_token()."
+    },
+    {
+      "symbol": "OUSG",
+      "asset_name": "Ondo Short-Term US Government Bond Fund",
+      "role": "underlying",
+      "category": "rwa_debt",
+      "tradable_on_thetanuts": false,
+      "shariah_status": "REJECT",
+      "rationale": "Same structure as BUIDL: tokenized short-term US Treasuries. Direct Riba exposure -- treasuries pay a coupon/discount that is definitionally interest."
+    },
+    {
+      "symbol": "USDY",
+      "asset_name": "Ondo US Dollar Yield",
+      "role": "underlying",
+      "category": "rwa_debt",
+      "tradable_on_thetanuts": false,
+      "shariah_status": "REJECT",
+      "rationale": "Yield-bearing dollar note backed by short-term Treasuries and bank deposits; the 'yield' in the name is the tell -- it is interest income passed through to holders."
+    },
+    {
+      "symbol": "PAXG",
+      "asset_name": "Paxos Gold",
+      "role": "underlying",
+      "category": "rwa_commodity",
+      "tradable_on_thetanuts": false,
+      "shariah_status": "COMPLIANT_CONDITIONAL",
+      "rationale": "Each token is fully backed by one fine troy ounce of allocated physical gold held in a Brink's vault, redeemable for physical delivery. No yield or coupon -- not a Riba concern. The open question is Riba al-Fadl / qabd (possession): gold and silver are classically 'ribawi' items where classical fiqh requires hand-to-hand spot exchange. Whether an on-chain, redeemable, audited allocated-gold claim satisfies constructive possession is a live debate among contemporary scholars (some boards, e.g. covering the older Gold-i/OneGram products, ruled allocated + redeemable structures acceptable; others require physical delivery). Treat as scholar-review-required, not auto-PASS, before writing an option against it.",
+      "restrictions": ["requires_scholar_review_on_qabd", "spot_or_short_tenor_only_pending_review"]
+    },
+    {
+      "symbol": "REALT-EXAMPLE",
+      "asset_name": "RealT-style fractional rental property token (illustrative)",
+      "role": "underlying",
+      "category": "rwa_real_estate",
+      "tradable_on_thetanuts": false,
+      "shariah_status": "COMPLIANT_CONDITIONAL",
+      "rationale": "Illustrative record, not a specific live token -- included to show how the category would be screened. A fractional real-estate token backed by real rental income is closer to an Ijarah (lease) structure than a debt instrument: return comes from rent (usufruct), not interest. Conditional on: (1) the property itself has no interest-bearing mortgage financing behind it, (2) the underlying business/SPV passes the same debt-ratio and non-halal-income screen as an equity (reuse sec_edgar_screen.py's ratio approach, or the issuer's own compliance disclosure), (3) the rental use of the property is itself permissible (no bar, gambling hall, etc., per Related.md).",
+      "restrictions": ["requires_property_financing_review", "requires_underlying_business_screen", "per_issuer_review_required"]
+    },
+    {
+      "symbol": "TOKENIZED-EQUITY-EXAMPLE",
+      "asset_name": "Tokenized public equity, e.g. Backed Finance-style xStock wrapper (illustrative)",
+      "role": "underlying",
+      "category": "rwa_equity",
+      "tradable_on_thetanuts": false,
+      "shariah_status": "REJECT",
+      "rationale": "Illustrative record. A tokenized-equity wrapper is only as compliant as the underlying company -- it must clear the SAME screen the equity Ai_Finance_Syariah project already runs (business activity + interest-bearing-debt and non-halal-income ratios via sec_edgar_screen.py), per-issuer, not as a blanket category. Defaults to REJECT here because no specific issuer has been screened; add a per-symbol record (e.g. 'AAPL-XSTOCK') only after running the actual equity screen on that issuer, same as the fail-closed pattern everywhere else in this file."
     }
   ]
 }
