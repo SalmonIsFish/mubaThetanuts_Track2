@@ -1,0 +1,57 @@
+{
+  "dataset_id": "sc-crypto-underlying-2026-08-27",
+  "publication_date": "2026-08-27",
+  "source": {
+    "authority": "Internal Shariah desk review, cross-referenced against Thetanuts V4 supported assets (docs.thetanuts.finance/sdk/getting-started/supported-chains)",
+    "note": "Fail-closed: an asset absent from this file, or not marked COMPLIANT, is treated as REJECT by underlying_screen.py. Extend this list only with a written rationale citing docs/shariah-policy/*.md.",
+    "policy_refs": ["docs/shariah-policy/Riba.md", "docs/shariah-policy/Gharar.md", "docs/shariah-policy/Maysir.md"]
+  },
+  "validation": {
+    "status": "active"
+  },
+  "records": [
+    {
+      "symbol": "BTC",
+      "asset_name": "Bitcoin",
+      "role": "underlying",
+      "shariah_status": "COMPLIANT",
+      "rationale": "Non-interest-bearing digital commodity; no embedded yield, coupon, or debt claim. Widely reviewed by contemporary Shariah boards as an asset (mal) rather than a Riba-bearing instrument."
+    },
+    {
+      "symbol": "ETH",
+      "asset_name": "Ether",
+      "role": "underlying",
+      "shariah_status": "COMPLIANT",
+      "rationale": "Native network asset with utility (gas/computation), not a debt instrument. Screen applies to spot ETH only -- see cbETH/wstETH-style rebasing or fixed-yield staking derivatives, which are NOT covered by this record and default-reject."
+    },
+    {
+      "symbol": "SOL",
+      "asset_name": "Solana",
+      "role": "underlying",
+      "shariah_status": "COMPLIANT",
+      "rationale": "Native network asset, non-interest-bearing. Same caveat as ETH: liquid-staking derivative tokens are separate records, not implicitly covered."
+    },
+    {
+      "symbol": "cbBTC",
+      "asset_name": "Coinbase Wrapped BTC",
+      "role": "underlying_or_collateral",
+      "shariah_status": "COMPLIANT",
+      "rationale": "1:1 custodial wrapper over BTC with no embedded yield or rehypothecation-for-interest disclosed. Treated as a proxy for spot BTC for screening purposes. Re-review if issuer terms change to include yield."
+    },
+    {
+      "symbol": "WETH",
+      "asset_name": "Wrapped Ether",
+      "role": "underlying_or_collateral",
+      "shariah_status": "COMPLIANT",
+      "rationale": "1:1 non-custodial wrapper over ETH via smart contract, no yield accrual. Proxy for spot ETH for screening purposes."
+    },
+    {
+      "symbol": "USDC",
+      "asset_name": "USD Coin",
+      "role": "collateral_only",
+      "shariah_status": "COMPLIANT_CONDITIONAL",
+      "rationale": "Fiat-backed stablecoin used only as a cash-collateral / settlement unit in this system, never held as a yield-bearing position and never supplied to a lending/interest venue by this agent. Conditional on: (1) never routed through Thetanuts loan/CALL_LOAN tools, (2) never deposited to a yield vault by this codebase. collateral_gate.py enforces both.",
+      "restrictions": ["no_lending_venues", "no_yield_vaults", "settlement_and_collateral_use_only"]
+    }
+  ]
+}
