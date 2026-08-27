@@ -7,16 +7,21 @@
   "scripts": {
     "smoke-test": "tsx src/smokeTest.ts",
     "execute:micro-trade": "tsx src/executeMicroTrade.ts",
-    "prepare:rfq": "tsx src/prepareRfq.ts"
+    "prepare:rfq": "tsx src/prepareRfq.ts",
+    "api": "tsx src/api/server.ts"
   },
   "dependencies": {
     "@thetanuts-finance/thetanuts-client": "^0.3.0",
     "ethers": "^6.13.0",
-    "dotenv": "^16.4.0"
+    "dotenv": "^16.4.0",
+    "express": "^4.19.0",
+    "cors": "^2.8.5"
   },
   "devDependencies": {
     "tsx": "^4.16.0",
     "typescript": "^5.5.0",
-    "@types/node": "^20.14.0"
+    "@types/node": "^20.14.0",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17"
   }
 }

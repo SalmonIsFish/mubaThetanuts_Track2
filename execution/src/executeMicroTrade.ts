@@ -23,6 +23,7 @@ import "dotenv/config";
 import { ethers } from "ethers";
 import { ThetanutsClient } from "@thetanuts-finance/thetanuts-client";
 import { requireReadyForExecution } from "./gateClient.js";
+import { resolveTradeIntent, buildGateRequest, numContractsHuman, type SupportedAsset, type OptionType } from "./tradeResolver.js";
 
 const RPC_URL = process.env.THETANUTS_RPC_URL ?? "https://mainnet.base.org";
 const PRIVATE_KEY = process.env.THETANUTS_PRIVATE_KEY;
@@ -33,18 +34,10 @@ const HARD_CAP_USD = Number(process.env.MAX_NOTIONAL_USD_HARD_CAP ?? "3");
 // Default trade size is 2 USDC: "1-3 USDC covers you... a 1 USDC fill scores
 // exactly the same as 100" per the Thetanuts workshop deck -- there's no
 // upside to sizing the demo trade any bigger.
-const TARGET_ASSET = process.argv[2] ?? "ETH";
-const TARGET_TYPE = (process.argv[3] ?? "put").toLowerCase(); // "put" | "call"
-const SPEND_USDC = BigInt(process.argv[4] ?? "2000000"); // 2 USDC, 6dp
-
-// NOTE: field paths like `o.metadata?.asset`, `candidate.order.strikes[0]`
-// scaling, and `candidate.metadata?.delta` are inferred from the SDK's prose
-// docs (docs.thetanuts.finance/sdk/optionbook/*), not from reading the
-// published .d.ts directly. Before the live run: `npm install`, then check
-// `node_modules/@thetanuts-finance/thetanuts-client`'s type definitions (or
-// just `console.log(JSON.stringify(orders[0], null, 2))`) and correct any
-// field name/decimal-scaling mismatch. Treat this file as a verified
-// skeleton, not a black box to run unread.
+const TARGET_ASSET = (process.argv[2] ?? "ETH") as SupportedAsset;
+const TARGET_TYPE = (process.argv[3] ?? "put").toLowerCase() as OptionType; // "put" | "call"
+const SPEND_USDC_ARG = process.argv[4] ?? "2000000"; // 2 USDC, 6dp
+const SPEND_USDC = BigInt(SPEND_USDC_ARG);
 
 async function main() {
   if (!PRIVATE_KEY) throw new Error("THETANUTS_PRIVATE_KEY not set -- refusing to run without a signer configured explicitly.");
@@ -64,50 +57,30 @@ async function main() {
   const client = new ThetanutsClient({ chainId: 8453, provider, signer });
   const userAddress = await signer.getAddress();
 
-  // 1. Browse maker orders for the target asset/type.
-  const orders = await client.api.fetchOrders();
-  const nowSec = Math.floor(Date.now() / 1000);
-  const candidate = orders.find(
-    (o) =>
-      o.order.expiry > BigInt(nowSec) &&
-      o.metadata?.asset === TARGET_ASSET &&
-      o.metadata?.type === TARGET_TYPE &&
-      o.order.strikes.length === 1, // vanilla only for the micro-trade demo
-  );
-  if (!candidate) throw new Error(`No active vanilla ${TARGET_TYPE.toUpperCase()} order found for ${TARGET_ASSET}.`);
-
-  // 2. Preview the fill -- no tx yet.
-  const preview = client.optionBook.previewFillOrder(candidate, SPEND_USDC);
-  const marketData = await client.api.getMarketData();
-  const spotPrice = marketData.prices[TARGET_ASSET];
+  // 1-2. Find the best matching live order and preview the fill -- no tx yet.
+  const resolved = await resolveTradeIntent(client, {
+    asset: TARGET_ASSET,
+    optionType: TARGET_TYPE,
+    spendUsdc: spendUsd,
+  });
+  const { candidate, preview } = resolved;
 
   // 3. Gate check -- fail closed, this call throws if BLOCKED or unreachable.
-  const decision = await requireReadyForExecution(GATE_SERVICE_URL, {
-    underlying_symbol: TARGET_ASSET,
-    option_type: TARGET_TYPE.toUpperCase() as "PUT" | "CALL",
-    structure: `VANILLA_${TARGET_TYPE.toUpperCase()}`,
-    side: "BUY", // OptionBook taker on a listed order = fully-paid long
-    num_contracts: Number(preview.numContracts),
-    strike: Number(candidate.order.strikes[0]) / 1e8, // adjust to the order's actual strike decimals
-    spot_price: spotPrice,
-    notional_usd: spendUsd,
-    collateral_token: "USDC",
-    posted_collateral_amount: spendUsd,
-    required_collateral_amount: spendUsd, // taker pays the previewed amount in full, no partial fill for this demo
-    delta: candidate.metadata?.delta ?? null, // pre-computed Greeks from the indexer, per SDK docs
-  });
+  const decision = await requireReadyForExecution(
+    GATE_SERVICE_URL,
+    buildGateRequest({ asset: TARGET_ASSET, optionType: TARGET_TYPE, spendUsdc: spendUsd, resolved }),
+  );
   console.log("Gate chain decision:", decision.decision, decision.gate_summary);
 
   // 4. Approve collateral spend, then fill.
-  await client.erc20.ensureAllowance(
-    client.chainConfig.tokens.USDC.address,
-    client.chainConfig.contracts.optionBook,
-    SPEND_USDC,
-  );
+  const optionBookAddress = client.chainConfig.contracts.optionBook;
+  if (!optionBookAddress) throw new Error("OptionBook not deployed on this chain config -- refusing to proceed.");
+  await client.erc20.ensureAllowance(client.chainConfig.tokens.USDC.address, optionBookAddress, SPEND_USDC);
 
   const receipt = await client.optionBook.fillOrder(candidate, SPEND_USDC);
   console.log(`Live trade executed on Base mainnet: https://basescan.org/tx/${receipt.hash}`);
   console.log(`Account: ${userAddress}`);
+  console.log(`Filled ${numContractsHuman(preview)} contracts at strike ${Number(candidate.order.strikes![0]) / 1e8}`);
 }
 
 main().catch((err) => {
