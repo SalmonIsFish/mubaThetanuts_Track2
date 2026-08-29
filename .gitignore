@@ -4,6 +4,10 @@ dist/
 .env
 gate-chain/.env
 execution/.env
+
+# Real .mcp.json holds a live RPC key + KEYSTORE_MASTER_KEY -- never commit
+# it. Copy .mcp.example.json to .mcp.json and fill in your own values.
+.mcp.json
 __pycache__/
 *.pyc
 .pytest_cache/

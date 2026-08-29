@@ -13,16 +13,32 @@ strategy or risk copilot**," "an autonomous hedging agent — placing real
 trades on OptionBook or OptionFactory." This project is the second example,
 close to word for word — no pivot indicated by the workshop material.
 
-Judging is two questions, not three: **"Does it work?"** (a real running
-product, not a mockup) and **"Would anyone actually use it?"** (who's it
-for, why over what exists, does it scale — "a couple of honest sentences
-beats a business plan"). Track 1 additionally has its own hard rule ("if it
-would work identically with the Thetanuts calls stubbed out, it isn't
-really using on-chain options") which isn't a formally separate judging
-criterion for Track 2, but the spirit still applies: Track 2's bar is a
-*real* trade against *live* pricing, which is meaningless if the numbers
-feeding the gate chain aren't actually coming from a live `fetchOrders`/
-`calculate_collateral_required` call at demo time.
+Judging is three questions, applied to both tracks, per the organizer's own
+builder doc ("Thetanuts MUBA Hackathon Builder Docs"): **"Does it work?"**
+(a real running product, not a mockup), **"Are the options load-bearing?"**
+("if it would work identically with the Thetanuts calls stubbed out, it
+isn't really using on-chain options" — this is not Track-1-only, it's
+listed as a criterion for both tracks), and **"Does it fit the market?"**
+(who's it for, why over what exists, does it scale — "a couple of honest
+sentences beats a business plan"). For us, "load-bearing" means the
+copilot's read/strategy calls (market data, order matching, collateral
+calc) and the gate chain's own inputs need to be genuinely live-sourced
+throughout, not just at the final `/execute` call — a real trade against
+live pricing is meaningless if the numbers feeding the gate chain aren't
+actually coming from a live `fetchOrders`/`calculate_collateral_required`
+call at demo time.
+
+**Update, 2026-08-29 (organizer clarification, Discord):** Shawn confirmed a
+signed on-chain broadcast is optional, not a hard gate — "if you don't want
+to use it, that's also fine, you can explain your ideas and don't need to
+run the demo on it. As long as the idea & build reaches them, they will
+judge fairly." This project takes the honest middle path rather than either
+extreme: the full pipeline (live SDK connection, live order matching, live
+gate-chain evaluation against real market data) is proven end-to-end and
+captured in `docs/demo-evidence/`, stopping one signature short of an actual
+broadcast. See that file for exactly how far it got and why. The
+"load-bearing" bar above still fully applies to everything up to that point
+— it's the final signed transaction specifically that's now optional.
 
 Our answer to "would anyone actually use it": nobody else at this hackathon
 will have a compliance layer, and there's a real, currently-locked-out user

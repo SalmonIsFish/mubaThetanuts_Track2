@@ -29,6 +29,12 @@ docs/RWA_AND_CATEGORIES.md    RWA (Real-World Assets) vs RWA (Risk-Weighted
                                Assets) disambiguation, the asset category
                                taxonomy, and worked RWA examples.
 docs/Thetanuts MUBA Hackathon.pdf   The official builder workshop deck.
+docs/demo-evidence/            Timestamped proof of the live pipeline (gate-chain
+                                tests, connection smoke test, a full /propose
+                                dry-run, four live rejection scenarios, and
+                                three /converse natural-language conversations)
+                                — see that folder if no signed on-chain trade is present at
+                                submission time.
 ```
 
 ## Quick start
@@ -56,8 +62,9 @@ npm run api                                         # listens on http://127.0.0.
 See `docs/ARCHITECTURE.md` for why the system is split this way, and for a
 fit-check against the official MUBA workshop deck (`Thetanuts MUBA
 Hackathon.pdf`) — short version: Track 02 names "an AI strategy or risk
-copilot" as an example almost word for word, and judging is two questions
-("does it work" / "would anyone actually use it"), not more.
+copilot" as an example almost word for word, and judging is three questions
+applied to both tracks ("does it work" / "are the options load-bearing" /
+"would anyone actually use it").
 
 ## HTTP API
 

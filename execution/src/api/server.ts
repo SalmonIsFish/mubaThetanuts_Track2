@@ -26,6 +26,7 @@ import {
   type OptionType,
 } from "../tradeResolver.js";
 import { jsonSafe } from "../jsonSafe.js";
+import { parseIntent, explainDecision } from "../copilot.js";
 
 const RPC_URL = process.env.THETANUTS_RPC_URL ?? "https://mainnet.base.org";
 const GATE_SERVICE_URL = process.env.GATE_SERVICE_URL ?? "http://127.0.0.1:8787";
@@ -149,6 +150,77 @@ app.post(
         requires_delta_recheck_before_settlement: decision.requires_delta_recheck_before_settlement,
       }),
     );
+  }),
+);
+
+/**
+ * The visible "AI conversation" layer: natural language in, a gate-checked
+ * decision + plain-language explanation out. Deliberately propose-only --
+ * this route calls the exact same read-only path as /propose (resolve
+ * against live orders, evaluate via gate-chain) and NEVER reaches /execute's
+ * code path. The LLM parses intent and explains a verdict; it never
+ * constructs, signs, or requests a signed transaction. That split is the
+ * whole point: ingestion and translation can be "wrong" (an LLM slip just
+ * produces a bad clarification question or a slightly-off explanation);
+ * the trade decision itself still only ever comes from gate-chain, called
+ * exactly the way /propose calls it.
+ */
+app.post(
+  "/converse",
+  asyncRoute(async (req, res) => {
+    const prompt = String((req.body as { prompt?: unknown } | null)?.prompt ?? "");
+    if (!prompt.trim()) throw new HttpError(400, "Request body must include a non-empty `prompt` string.");
+
+    const intent = await parseIntent(prompt);
+
+    if (!intent.understood || !intent.asset || !intent.optionType || intent.spendUsdc == null) {
+      res.json({
+        status: "clarification_needed",
+        actionable_data: null,
+        ai_explanation:
+          intent.clarification ?? "Could you clarify the asset, put/call, and how much to spend?",
+      });
+      return;
+    }
+
+    // Re-validate the LLM's extraction against the same rules /propose
+    // enforces (hard cap, supported side) -- the LLM's output is treated as
+    // untrusted input here, not as a pre-cleared request.
+    let validated: { asset: SupportedAsset; optionType: OptionType; spendUsdc: number };
+    try {
+      validated = parseTradeBody({
+        asset: intent.asset,
+        optionType: intent.optionType,
+        side: "BUY",
+        spendUsdc: intent.spendUsdc,
+      });
+    } catch (err) {
+      const message = err instanceof HttpError ? err.message : "That request isn't valid.";
+      res.json({ status: "clarification_needed", actionable_data: null, ai_explanation: message });
+      return;
+    }
+
+    const resolved = await resolveTradeIntent(readClient, validated);
+    const gateRequest = buildGateRequest({ ...validated, resolved });
+    const decision = await evaluateTrade(GATE_SERVICE_URL, gateRequest);
+
+    const actionableData = jsonSafe({
+      candidateOrder: resolved.candidate,
+      preview: resolved.preview,
+      numContractsHuman: numContractsHuman(resolved.preview),
+      spotPrice: resolved.spotPrice,
+      blockers: decision.blockers,
+      gate_summary: decision.gate_summary,
+      requires_delta_recheck_before_settlement: decision.requires_delta_recheck_before_settlement,
+    });
+
+    const aiExplanation = await explainDecision(validated, decision);
+
+    res.json({
+      status: decision.decision === "READY_FOR_EXECUTION" ? "ready" : "rejected",
+      actionable_data: actionableData,
+      ai_explanation: aiExplanation,
+    });
   }),
 );
 

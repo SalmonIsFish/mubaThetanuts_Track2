@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "thetanuts": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@thetanuts-finance/mcp"],
+      "env": {
+        "THETANUTS_RPC_URL": "REPLACE_WITH_YOUR_ALCHEMY_OR_INFURA_BASE_MAINNET_URL",
+        "KEYSTORE_MASTER_KEY": "REPLACE_WITH_OUTPUT_OF_openssl_rand_hex_32"
+      }
+    }
+  }
+}
