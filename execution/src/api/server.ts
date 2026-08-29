@@ -20,6 +20,7 @@ import {
   resolveTradeIntent,
   buildGateRequest,
   findLiveOrders,
+  assetForOrder,
   numContractsHuman,
   SUPPORTED_ASSETS,
   type SupportedAsset,
@@ -118,6 +119,83 @@ app.get(
     });
 
     res.json(jsonSafe({ count: orders.length, orders }));
+  }),
+);
+
+// Nominal size used only to run every live order through the gate chain --
+// a fixed, safely-under-cap amount, not a real trade proposal. The BUY-side
+// gates (underlying screen, collateral, structure, delta) don't depend on
+// this number; only risk_checks' per-trade cap does, and $2 keeps every
+// order well clear of it so the screening result reflects the order itself,
+// not an arbitrarily chosen size.
+const SCREENING_NOTIONAL_USD = 2;
+
+/**
+ * Analytics view: every live order, annotated with its own gate-chain
+ * verdict -- "which of what's live on Thetanuts right now is actually
+ * Shariah/risk screenable." No wallet needed, nothing is proposed or
+ * matched to a spend amount; this evaluates orders as they stand, not a
+ * user's trade intent. Reuses the exact same evaluateTrade() call /propose
+ * and /converse use -- gate-chain is still the only thing that decides
+ * compliance here, this route just runs it across the live order book
+ * instead of one resolved trade.
+ */
+app.get(
+  "/orders/screened",
+  asyncRoute(async (req, res) => {
+    const asset = req.query.asset ? String(req.query.asset).toUpperCase() : undefined;
+    const type = req.query.type ? String(req.query.type).toLowerCase() : undefined;
+    if (asset && !SUPPORTED_ASSETS.includes(asset as SupportedAsset)) {
+      throw new HttpError(400, `asset must be one of ${SUPPORTED_ASSETS.join(", ")}.`);
+    }
+    if (type && type !== "put" && type !== "call") {
+      throw new HttpError(400, `type must be "put" or "call".`);
+    }
+    const limit = Math.min(Number(req.query.limit) || 25, 100);
+
+    const orders = await findLiveOrders(readClient, {
+      asset: asset as SupportedAsset | undefined,
+      optionType: type as OptionType | undefined,
+      vanillaOnly: true,
+    });
+
+    const screened = await Promise.all(
+      orders.slice(0, limit).map(async (order) => {
+        const orderAsset = assetForOrder(readClient, order);
+        const orderType: OptionType = order.rawApiData?.isCall ? "call" : "put";
+        if (!orderAsset) {
+          return { order: jsonSafe(order), asset: null, optionType: orderType, decision: "UNSCREENED", blockers: ["asset_not_resolvable"], gate_summary: null };
+        }
+
+        const gateRequest = buildGateRequest({
+          asset: orderAsset,
+          optionType: orderType,
+          spendUsdc: SCREENING_NOTIONAL_USD,
+          resolved: {
+            candidate: order,
+            preview: { numContracts: BigInt(0) } as ReturnType<ThetanutsClient["optionBook"]["previewFillOrder"]>,
+            spotPrice: Number(order.order.strikes![0]) / 1e8,
+            spendUsdcBigint: BigInt(SCREENING_NOTIONAL_USD * 1_000_000),
+            delta: order.rawApiData?.greeks?.delta ?? null,
+          },
+        });
+
+        const decision = await evaluateTrade(GATE_SERVICE_URL, gateRequest);
+        return {
+          asset: orderAsset,
+          optionType: orderType,
+          strike: Number(order.order.strikes![0]) / 1e8,
+          maker: order.makerAddress,
+          expiry: order.order.expiry.toString(),
+          decision: decision.decision,
+          blockers: decision.blockers,
+          gate_summary: decision.gate_summary,
+        };
+      }),
+    );
+
+    const compliantCount = screened.filter((s) => s.decision === "READY_FOR_EXECUTION").length;
+    res.json(jsonSafe({ count: screened.length, compliantCount, screened }));
   }),
 );
 

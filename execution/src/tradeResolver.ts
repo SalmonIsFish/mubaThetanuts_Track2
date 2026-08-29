@@ -42,6 +42,19 @@ function buildPriceFeedToAssetMap(client: ThetanutsClient): Map<string, Supporte
 }
 
 /**
+ * Which of BTC/ETH/SOL a live order is on, via the same priceFeed-address
+ * match findLiveOrders() uses internally (order.underlyingToken can't be
+ * trusted -- see the module note above). Exported for callers that need to
+ * label an order rather than just filter by a known asset, e.g. the
+ * /orders/screened analytics route.
+ */
+export function assetForOrder(client: ThetanutsClient, order: OrderWithSignature): SupportedAsset | undefined {
+  const feed = order.rawApiData?.priceFeed?.toLowerCase();
+  if (!feed) return undefined;
+  return buildPriceFeedToAssetMap(client).get(feed);
+}
+
+/**
  * Live (unexpired), asset/type-filtered orders, filtered entirely
  * client-side against `fetchOrders()` output -- see the module-level note
  * on why `filterOrders()` cannot be used.

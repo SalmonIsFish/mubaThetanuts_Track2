@@ -212,6 +212,43 @@ LLM's explanation step entirely by design: a hard dollar cap doesn't need an
 AI to explain it, and this is a clean demonstration that the cap holds
 regardless of what the AI extracts from a natural-language request.
 
+## 6. Track 1 angle — `GET /orders/screened`, a live analytics tool
+
+Track 1 ("Best Product Built on the Thetanuts SDK") is open-ended and
+explicitly names "analytics tools" as an example category. This route pulls
+live OptionBook orders and runs each one through the exact same
+`evaluateTrade()` call `/propose` and `/converse` use — a live, standing
+Shariah/risk screen over the whole order book, not tied to any one user's
+trade intent. Reuses `findLiveOrders()` and the gate chain as-is; no new
+compliance logic, no changes to gate-chain (still 17/17 tests, untouched).
+
+Captured 2026-08-30 (UTC), `GET /orders/screened?limit=10`:
+
+```
+count: 10   compliantCount: 6
+```
+
+| Strike | Type | Decision | Reason |
+|---|---|---|---|
+| $2,400 | put | BLOCKED | delta_rejected |
+| $2,420 | put | READY_FOR_EXECUTION | — |
+| $2,440 | put | READY_FOR_EXECUTION | — |
+| $2,460 | call | READY_FOR_EXECUTION | — |
+| $2,480 | call | READY_FOR_EXECUTION | — |
+| $2,500 | call | BLOCKED | delta_rejected |
+| $2,340 | put | BLOCKED | delta_rejected |
+| $2,360 | put | BLOCKED | delta_rejected |
+| $2,380 | put | READY_FOR_EXECUTION | — |
+| $2,400 | put | READY_FOR_EXECUTION | — |
+
+Notable: these delta rejections are **naturally occurring**, not crafted
+inputs like the section 4 rejection scenarios — real strikes currently live
+on Thetanuts' own order book happened to fall outside the 0.10–0.90 delta
+band, and the same gate chain that evaluates a single proposed trade caught
+them automatically across the live book. Stronger proof than a synthetic
+example: the compliance layer works on real market data it was never shown
+in advance.
+
 ## What's left for an actual broadcast
 
 Exactly one step: fund `0x2422C392C2Aa88acc44B7c1248bF3CffD6800bb6` on Base

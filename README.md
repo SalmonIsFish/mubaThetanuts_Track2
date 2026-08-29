@@ -94,6 +94,21 @@ curl "http://127.0.0.1:8790/orders?asset=ETH&type=put"
 # {"count": 51, "orders": [{ "order": {...}, "rawApiData": {...}, ... }]}
 ```
 
+### `GET /orders/screened?asset=&type=&limit=`
+Analytics view: live OptionBook orders, each annotated with its own gate-chain
+verdict -- which of what's live on Thetanuts right now actually clears the
+Shariah + risk screen, and why (or why not). No wallet needed; nothing is
+proposed or matched to a spend amount -- this evaluates orders as they stand,
+using a fixed nominal size ($2) only so the BUY-side gates have a number to
+evaluate against. Same `asset`/`type` filters as `/orders`; `limit` caps how
+many orders get evaluated (default 25, max 100).
+
+```bash
+curl "http://127.0.0.1:8790/orders/screened?asset=ETH&limit=10"
+# {"count": 10, "compliantCount": 6, "screened": [{ "asset": "ETH", "optionType": "put",
+#   "strike": 2400, "decision": "BLOCKED", "blockers": ["delta_rejected"], ... }, ...]}
+```
+
 ### `GET /market-data`
 Live prices for every supported asset. No wallet needed.
 
