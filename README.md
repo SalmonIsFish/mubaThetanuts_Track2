@@ -32,7 +32,9 @@ docs/Thetanuts MUBA Hackathon.pdf   The official builder workshop deck.
 docs/demo-evidence/            Timestamped proof of the live pipeline (gate-chain
                                 tests, connection smoke test, a full /propose
                                 dry-run, four live rejection scenarios, and
-                                three /converse natural-language conversations)
+                                four /converse natural-language conversations,
+                                including an adversarial attempt to talk the AI
+                                into overriding a compliance result)
                                 — see that folder if no signed on-chain trade is present at
                                 submission time.
 ```
