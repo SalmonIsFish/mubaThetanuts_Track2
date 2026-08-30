@@ -70,8 +70,8 @@ applied to both tracks ("does it work" / "are the options load-bearing" /
 
 `execution/src/api/server.ts` (`npm run api`, port `8790` by default —
 override with `API_PORT` in `execution/.env`) is what a frontend calls. It
-wraps the Thetanuts SDK and the gate chain behind four routes; CORS is open
-so any local frontend dev server can call it directly.
+wraps the Thetanuts SDK and the gate chain behind the routes below; CORS is
+open so any local frontend dev server can call it directly.
 
 `gate-chain/server.py` must already be running (`uvicorn server:app --host
 127.0.0.1 --port 8787`) — `/propose` and `/execute` both call it, and
@@ -142,7 +142,32 @@ decimal-scaled contract count — see the scaling note in
 `tradeResolver.ts`), `spotPrice`, and the gate chain's own
 `decision` (`READY_FOR_EXECUTION` | `BLOCKED`), `blockers`, and full
 `gate_summary` (per-gate breakdown — underlying screen, collateral,
-structure, delta, risk checks) for the frontend to render.
+structure, delta, risk checks) for the frontend to render. Trimmed real
+response (live Base mainnet, order/signature fields shortened):
+
+```json
+{
+  "candidateOrder": { "order": { "...": "raw SDK order object" }, "rawApiData": { "greeks": { "delta": -0.3223, "iv": 0.3653 } } },
+  "preview": { "numContracts": "176455", "pricePerContract": "1133427538", "totalCollateral": "2000000" },
+  "numContractsHuman": 0.176455,
+  "spotPrice": 2478.25,
+  "decision": "READY_FOR_EXECUTION",
+  "blockers": [],
+  "gate_summary": {
+    "underlying_screen": { "status": "PASS", "reason": "token_compliant", "symbol": "ETH", "category": "crypto_native" },
+    "collateral_gate": { "status": "PASS", "reason": "fully_collateralized_self_funded", "token": "USDC" },
+    "option_structure_gate": { "status": "PASS", "reason": "fully_paid_long_position", "structure": "VANILLA_PUT" },
+    "delta_gate": { "status": "PASS", "reason": "delta_within_band", "abs_delta": 0.3223 },
+    "risk_checks": { "status": "PASS", "limits": { "max_notional_usd_per_trade": 3, "max_notional_usd_per_day": 10, "max_orders_per_day": 5 } }
+  },
+  "requires_delta_recheck_before_settlement": false
+}
+```
+
+A `BLOCKED` response has the same shape with `decision: "BLOCKED"`,
+`blockers` populated (e.g. `["delta_rejected"]`), and the failing gate's
+own entry in `gate_summary` set to `"status": "REJECT"` with its `reason`
+— see the `/orders/screened` example above for a live rejected case.
 
 ### `POST /execute`
 Same body as `/propose`. The only route that touches the signer — requires
@@ -159,8 +184,79 @@ curl -X POST http://127.0.0.1:8790/execute \
   -d '{"asset":"ETH","optionType":"put","side":"BUY","spendUsdc":2}'
 ```
 
-Response: `{"txHash", "basescanUrl", "account", "numContractsFilled",
-"numContractsFilledHuman", "decision", "gate_summary"}`.
+Response shape (same `decision`/`gate_summary` fields as `/propose`, plus
+the broadcast result — not captured live here since the demo wallet is
+intentionally funded with $0, see `docs/PITCH.md`):
+
+```json
+{
+  "txHash": "0x...",
+  "basescanUrl": "https://basescan.org/tx/0x...",
+  "account": "0xYourWalletAddress",
+  "numContractsFilled": "176455",
+  "numContractsFilledHuman": 0.176455,
+  "decision": "READY_FOR_EXECUTION",
+  "gate_summary": { "...": "same per-gate breakdown as /propose" }
+}
+```
+
+### `POST /converse`
+Natural language in, a trade proposal or a clarifying question out. Wraps
+`/propose`'s same resolve-then-gate-check pipeline behind an LLM extraction
+step (`copilot.ts`) — the LLM only ever extracts intent or explains a
+verdict already reached by the gate chain; it never makes the compliance
+decision itself (see `execution/src/copilot.ts`'s header comment). No
+wallet needed — this never executes.
+
+Body:
+```json
+{ "prompt": "buy an eth put with 2 dollars" }
+```
+
+Two response shapes depending on whether the prompt was fully understood.
+If it wasn't (missing asset/side/amount, or asks for something this
+system can't do — selling, spreads, unsupported assets):
+
+```json
+{
+  "status": "clarification_needed",
+  "actionable_data": null,
+  "ai_explanation": "What dollar amount do you want to spend?"
+}
+```
+
+If it was, real captured response (live Base mainnet, order/signature
+fields trimmed):
+
+```json
+{
+  "status": "ready",
+  "actionable_data": {
+    "candidateOrder": { "order": { "...": "raw SDK order object" } },
+    "preview": { "numContracts": "170259", "totalCollateral": "2000000" },
+    "numContractsHuman": 0.170259,
+    "spotPrice": 2477.18,
+    "blockers": [],
+    "gate_summary": { "...": "same per-gate breakdown as /propose" },
+    "requires_delta_recheck_before_settlement": false
+  },
+  "ai_explanation": "The trade involving a put option on Ether (ETH) has been approved and is ready for execution. The underlying asset, ETH, is compliant because it is a native network asset with utility and not a debt instrument. The collateral used, USD Coin (USDC), is also compliant under specific conditions, as it is only used for cash collateral and settlement, without being involved in lending or yield-bearing activities. All necessary checks have passed, confirming that the trade adheres to Shariah principles."
+}
+```
+
+`status` is `"rejected"` (same `actionable_data` shape, `decision:
+"BLOCKED"` inside `gate_summary`) when the gate chain blocks the parsed
+intent — `ai_explanation` then names the failing gate and, where the
+token has reviewed Shariah rationale on file, explains the actual fiqh
+reasoning (Riba/Gharar/Maysir) rather than just restating "rejected".
+Requires `OPENROUTER_API_KEY` in `execution/.env` — 500s with a clear
+message if unset.
+
+```bash
+curl -X POST http://127.0.0.1:8790/converse \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"buy an eth put with 2 dollars"}'
+```
 
 ## Official resources
 
