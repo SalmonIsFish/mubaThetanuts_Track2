@@ -369,7 +369,7 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ error: message });
 });
 
-app.listen(API_PORT, () => {
+app.listen(API_PORT, "127.0.0.1", () => {
   console.log(`Thetanuts execution API listening on http://127.0.0.1:${API_PORT}`);
   console.log(`Gate service: ${GATE_SERVICE_URL} | RPC: ${RPC_URL}`);
   console.log(`Signer configured: ${Boolean(process.env.THETANUTS_PRIVATE_KEY)}`);
