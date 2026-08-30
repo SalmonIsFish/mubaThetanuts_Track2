@@ -255,6 +255,45 @@ needs one pass against the installed SDK's real types. Run
 (no wallet, no signer, no approvals) and proves the connection is live
 before anything else is debugged.
 
+## Known limitations
+
+Three gaps identified during a pre-submission security/code review and a
+validation pass against Thetanuts' own support chatbot. None affect a
+normal demo run — the demo wallet only ever holds the operator's own small
+USDC balance (or $0) — but they're real, not fixed, and worth being honest
+about if asked.
+
+- **Daily risk caps are enforced in logic but never populated with real
+  data.** `risk_checks.py`'s `daily_notional_cap`/`daily_order_cap` checks
+  are correct, but `buildGateRequest()` in `tradeResolver.ts` — the one
+  function every entry path (`/execute`, `/propose`, `/converse`, both CLI
+  scripts) uses to build the gate request — never sets
+  `notional_usd_today`/`orders_today`. Both default to `0` on the Python
+  side, so every call is evaluated as the day's first trade; only the
+  per-trade cap (`MAX_NOTIONAL_USD_PER_TRADE`, enforced twice per the
+  invariant above) is actually live. Fix would be a real cumulative
+  counter, keyed by UTC day, tracked server-side in `api/server.ts`.
+- **Borrowed-collateral / lending-venue-routing detection is aspirational.**
+  `collateral_gate.py`'s `check_collateral()` correctly rejects when
+  `uses_borrowed_collateral=True` or `routed_through_lending_venue=True` —
+  `test_borrowed_collateral_rejected` passes — but `buildGateRequest()`
+  never sets either field, so both always default to `False`. The rule
+  works when tested directly; nothing in the live pipeline verifies it
+  against reality, because (per Thetanuts' own support bot, asked directly
+  during validation) the protocol itself can't see fund provenance either
+  — the smart contract only sees wallet balance at fill time, not history.
+  A real fix would mean querying on-chain lending-protocol debt positions
+  (e.g. Aave/Compound) for the wallet before evaluating, which is a
+  nontrivial feature, not a quick patch.
+- **`prepareRfq.ts` signs calldata never verified against the gate-approved
+  intent.** `submitPreparedRfq` gate-checks the *declared* intent fields,
+  then unconditionally signs and sends whatever `intent.envelope.calls`
+  contains — no check that the calldata's `to`/`data`/`value` actually
+  encode the same trade the gate just approved. Low risk today (a manual
+  script, not wired to any HTTP route or automated agent loop), but would
+  matter if this path is ever driven programmatically by an MCP/LLM agent,
+  which is its intended end state.
+
 ## Official resources (per the workshop deck)
 
 | | |
