@@ -369,8 +369,15 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ error: message });
 });
 
+// Bind both loopback addresses explicitly (not just IPv4) -- "localhost"
+// resolves to ::1 first on some machines (observed on Windows dev boxes),
+// and an IPv4-only bind silently refuses those clients while looking like
+// a working server to anyone using the 127.0.0.1 literal.
 app.listen(API_PORT, "127.0.0.1", () => {
   console.log(`Thetanuts execution API listening on http://127.0.0.1:${API_PORT}`);
-  console.log(`Gate service: ${GATE_SERVICE_URL} | RPC: ${RPC_URL}`);
+  // RPC_URL's path segment carries the provider API key (e.g. Alchemy) --
+  // log only the origin so it never lands in console output or log files.
+  console.log(`Gate service: ${GATE_SERVICE_URL} | RPC host: ${new URL(RPC_URL).origin}`);
   console.log(`Signer configured: ${Boolean(process.env.THETANUTS_PRIVATE_KEY)}`);
 });
+app.listen(API_PORT, "::1");
