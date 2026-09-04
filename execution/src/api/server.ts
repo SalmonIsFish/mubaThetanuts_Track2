@@ -309,17 +309,25 @@ app.post(
     const prior = parsePriorIntent(req.body);
     const extracted = await parseIntent(prompt);
 
+    // Deterministic fallback for "like 3 dollar" phrasing the LLM sometimes
+    // misses — gate enforces the cap anyway, so extracting here is safe and
+    // prevents the clarification loop where $3 is never carried forward.
+    const fallbackSpend = (() => {
+      const m = prompt.match(/(?:\$\s*)?(\d+(?:\.\d+)?)\s*(?:dollars?|usd|usdc)\b/i);
+      return m ? Number(m[1]) : null;
+    })();
+
     // Slot-filling merge: each /converse call only ever extracts from the
     // single latest message (parseIntent has no memory of its own), so a
     // fact given two turns ago would otherwise be forgotten the instant the
     // next clarifying question is asked -- this is what caused the
     // asset<->amount clarification loop. The new turn's extraction wins
-    // where it says something; anything it leaves null falls back to what
-    // an earlier turn already established.
+    // where it says something; anything it leaves null falls back to regex
+    // fallback then to what an earlier turn already established.
     const merged: PartialIntent = {
       asset: extracted.asset ?? prior.asset,
       optionType: extracted.optionType ?? prior.optionType,
-      spendUsdc: extracted.spendUsdc ?? prior.spendUsdc,
+      spendUsdc: extracted.spendUsdc ?? fallbackSpend ?? prior.spendUsdc,
     };
 
     const question = missingFieldQuestion(merged);
