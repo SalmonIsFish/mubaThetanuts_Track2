@@ -8,10 +8,9 @@ import ThinkingIndicator from "./ThinkingIndicator";
 import { tradeIntentFromProposal } from "../lib/format";
 
 const SUGGESTIONS = [
-  "Buy an ETH put with 2 dollars",
-  "Get me a BTC call for $3",
-  "Propose a SOL put spending $1",
-  "Ask about an options spread",
+  "Buy ETH put with 2 dollars",
+  "Buy AVAX call with 2 dollars",
+  "Show screened orders",
 ];
 
 interface Props {
@@ -111,9 +110,21 @@ export default function CopilotWorkspace({ onGateResult }: Props) {
     }
   }
 
-  function onSuggestion(s: string) {
-    setInput(s);
-    inputRef.current?.focus();
+  function handleChip(s: string) {
+    if (s === "Show screened orders") {
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: s },
+        {
+          role: "assistant",
+          content:
+            "Live screened book → right panel `Live Orders — Screened` (and bottom ticker). Each row is `GET /orders/screened` run through all 5 gates at $2 notional: green = `READY_FOR_EXECUTION`, red = `BLOCKED` + blocker. Click a trade chip to see the full `gate_summary` — unreachable gate = `BLOCKED` never silent pass (`gateClient.ts:requireReadyForExecution`).",
+        },
+      ]);
+      return;
+    }
+    // One click → immediate send so judge sees READY/BLOCKED without a second click
+    send(s);
   }
 
   function onKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -130,7 +141,7 @@ export default function CopilotWorkspace({ onGateResult }: Props) {
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-5 py-6">
-          {messages.length === 0 && !loading && <EmptyState onPick={onSuggestion} />}
+          {messages.length === 0 && !loading && <EmptyState onPick={handleChip} />}
 
           <div className="space-y-5">
             {messages.map((m, i) => (
@@ -210,7 +221,7 @@ function CopilotHeader() {
 /* --------------------------- Empty state --------------------------- */
 function EmptyState({ onPick }: { onPick: (s: string) => void }) {
   return (
-    <div className="py-14 text-center">
+    <div className="py-10 text-center">
       <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-[var(--accent-dim)] bg-[var(--accent-ink)] text-[var(--accent-strong)] text-2xl">
         ⚖
       </div>
@@ -223,13 +234,51 @@ function EmptyState({ onPick }: { onPick: (s: string) => void }) {
         explained — before anything is executed.
       </p>
 
-      <div className="mx-auto mt-8 grid max-w-xl grid-cols-1 gap-2 sm:grid-cols-2">
+      {/* One-slide gate: 5 gates → READY/BLOCKED, unreachable = BLOCKED */}
+      <div className="mx-auto mt-6 max-w-xl rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface-2)]/70 px-3 py-3">
+        <div className="label mb-2.5 text-center text-[10px] tracking-[0.12em]">
+          5 GATES → READY_FOR_EXECUTION · UNREACHABLE = BLOCKED
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-1">
+          {["Screen", "Collateral", "Structure", "Delta", "Risk"].map((label, i) => (
+            <span key={label} className="flex items-center gap-1">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-muted)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--text-faint)]" />
+                {label}
+              </span>
+              {i < 4 && (
+                <svg width="12" height="8" viewBox="0 0 12 8" fill="none" className="text-[var(--border-strong)]" aria-hidden>
+                  <path d="M0 4h8M5 1l3 3-3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </span>
+          ))}
+          <svg width="12" height="8" viewBox="0 0 12 8" fill="none" className="mx-1 text-[var(--border-strong)]" aria-hidden>
+            <path d="M0 4h8M5 1l3 3-3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--pass-border)] bg-[var(--pass-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--pass)]">
+            READY
+          </span>
+          <span className="text-[10px] text-[var(--text-faint)]">/</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--reject-border)] bg-[var(--reject-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--reject)]">
+            BLOCKED
+          </span>
+        </div>
+        <p className="mt-2 text-center text-[11px] leading-relaxed text-[var(--text-faint)]">
+          <code className="num text-[11px] text-[var(--text-muted)]">gateClient.ts:requireReadyForExecution</code> fail-closed
+        </p>
+      </div>
+
+      <div className="mx-auto mt-6 grid max-w-xl grid-cols-1 gap-2 sm:grid-cols-3">
         {SUGGESTIONS.map((s) => (
           <button key={s} onClick={() => onPick(s)} className="chip">
             {s}
           </button>
         ))}
       </div>
+      <p className="mx-auto mt-2 max-w-xl text-[11px] text-[var(--text-faint)]">
+        Click a chip to run a live <code className="num">POST /propose</code> + <code className="num">gate_summary</code> demo — no second click.
+      </p>
     </div>
   );
 }
