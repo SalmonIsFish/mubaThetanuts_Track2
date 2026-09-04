@@ -101,32 +101,33 @@ export default function CopilotWorkspace() {
       {/* Terminal product band */}
       <WorkspaceBand />
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="workspace-bg flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-5 py-6">
           {messages.length === 0 && !loading && <EmptyState onPick={onSuggestion} />}
 
-          <div className="space-y-5">
+          <div className="space-y-6">
             {messages.map((m, i) => (
               <ConversationMessage key={i} message={m} onExecute={handleExecute} />
             ))}
           </div>
 
           {loading && (
-            <div className="mt-5">
+            <div className="mt-6">
               <ThinkingIndicator />
             </div>
           )}
 
           {error && (
-            <div className="mt-4 rounded-lg border border-[var(--reject-border)] bg-[var(--reject-bg)]/40 px-4 py-3">
+            <div className="mt-5 rounded-lg border border-[var(--reject-border)] bg-[var(--reject-bg)]/40 px-4 py-3.5">
               <div className="flex items-center gap-2">
                 <span aria-hidden className="text-[var(--reject)]">✕</span>
                 <span className="text-[13px] text-[var(--reject)] font-medium">
-                  API connection error
+                  Copilot unavailable
                 </span>
               </div>
-              <p className="mt-1 text-xs text-[var(--text-muted)]">
-                {error} — check that the execution API is running on port 8790.
+              <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">
+                We couldn&apos;t reach the evaluation service. Please try again in a
+                moment — your request was not processed.
               </p>
             </div>
           )}
@@ -220,19 +221,19 @@ function EmptyState({ onPick }: { onPick: (s: string) => void }) {
 
         <div className="mt-6 ops-grid">
           <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
-            <span className="text-[var(--accent-strong)]" aria-hidden>✓</span>
+            <span className="text-[var(--pass)]" aria-hidden>✓</span>
             Underlying screen
           </div>
           <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
-            <span className="text-[var(--accent-strong)]" aria-hidden>✓</span>
+            <span className="text-[var(--pass)]" aria-hidden>✓</span>
             Collateral &amp; structure
           </div>
           <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
-            <span className="text-[var(--accent-strong)]" aria-hidden>✓</span>
+            <span className="text-[var(--pass)]" aria-hidden>✓</span>
             Delta band
           </div>
           <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
-            <span className="text-[var(--accent-strong)]" aria-hidden>✓</span>
+            <span className="text-[var(--pass)]" aria-hidden>✓</span>
             Risk / notional caps
           </div>
         </div>

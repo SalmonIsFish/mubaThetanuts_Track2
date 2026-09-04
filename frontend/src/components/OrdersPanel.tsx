@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getOrders } from "../api/client";
 import type { OrderEntry } from "../types";
+import PanelState from "./PanelState";
 
 type TypeFilter = "all" | "put" | "call";
 
@@ -13,7 +14,7 @@ const FILTERS: { value: TypeFilter; label: string }[] = [
 export default function OrdersPanel() {
   const [orders, setOrders] = useState<OrderEntry[]>([]);
   const [filter, setFilter] = useState<TypeFilter>("all");
-  const [error, setError] = useState<string | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -23,10 +24,10 @@ export default function OrdersPanel() {
         const data = await getOrders();
         if (active) {
           setOrders(data.orders);
-          setError(null);
+          setUnavailable(false);
         }
-      } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : "Failed");
+      } catch {
+        if (active) setUnavailable(true);
       }
     }
     load();
@@ -48,7 +49,9 @@ export default function OrdersPanel() {
     <section className="surface p-3.5">
       <header className="mb-2.5 flex items-center justify-between">
         <h3 className="label">Live Orders</h3>
-        <span className="num text-[11px] text-[var(--text-muted)]">{orders.length}</span>
+        <span className="num text-[11px] text-[var(--text-muted)]">
+          {unavailable ? "—" : orders.length}
+        </span>
       </header>
 
       <div className="mb-2.5 flex gap-1">
@@ -56,7 +59,8 @@ export default function OrdersPanel() {
           <button
             key={f.value}
             onClick={() => setFilter(f.value)}
-            className={`rounded-md px-2.5 py-1 text-[11.5px] font-medium transition-colors ${
+            disabled={unavailable || orders.length === 0}
+            className={`rounded-md px-2.5 py-1 text-[11.5px] font-medium transition-colors disabled:opacity-40 ${
               filter === f.value
                 ? "bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-strong)]"
                 : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
@@ -67,27 +71,36 @@ export default function OrdersPanel() {
         ))}
       </div>
 
-      {error && <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">{error}</p>}
-
       <div className="max-h-[340px] overflow-y-auto">
-        {orders.length === 0 && !error && (
-          <p className="py-6 text-center text-[11.5px] text-[var(--text-faint)]">
-            No live orders available.
-          </p>
+        {unavailable ? (
+          <PanelState
+            icon="◌"
+            title="Order feed unavailable"
+            detail="Live orders could not be loaded from the execution service."
+            retry="auto"
+          />
+        ) : orders.length === 0 ? (
+          <PanelState
+            icon="▦"
+            title="No orders on the desk"
+            detail="There are no option orders listed right now."
+          />
+        ) : filtered.length === 0 ? (
+          <PanelState
+            icon="▦"
+            title={`No ${filter} orders`}
+            detail={`There are no ${filter === "put" ? "puts" : "calls"} listed right now.`}
+          />
+        ) : (
+          filtered.map((o, i) => <OrderRow key={i} order={o} />)
         )}
-        {filtered.length === 0 && orders.length > 0 && (
-          <p className="py-4 text-center text-[11.5px] text-[var(--text-faint)]">
-            No {filter === "put" ? "puts" : "calls"} right now.
-          </p>
-        )}
-        {filtered.map((o, i) => (
-          <OrderRow key={i} order={o} />
-        ))}
       </div>
 
-      <p className="mt-2 text-[10.5px] text-[var(--text-faint)]">
-        {filter} · {putCount} puts listed
-      </p>
+      {!unavailable && orders.length > 0 && (
+        <p className="mt-2 text-[10.5px] text-[var(--text-faint)]">
+          {filter} · {putCount} puts listed
+        </p>
+      )}
     </section>
   );
 }

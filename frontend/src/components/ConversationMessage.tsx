@@ -116,10 +116,14 @@ function Ready({
   return (
     <div className="verdict-card verdict-ready overflow-hidden">
       <div className="verdict-title">
-        <span aria-hidden className="text-[15px]">✓</span>
-        <span className="main">Ready for Execution</span>
-        <span className="ml-auto num text-[12px] text-[var(--text-muted)]">
-          {passed} / {totalGates(currentProposal.gate_summary)} gates passed
+        <span className="mark" aria-hidden>✓</span>
+        <div>
+          <div className="main">Ready for Execution</div>
+          <div className="sub">All Shariah &amp; risk gates passed</div>
+        </div>
+        <span className="tally">
+          <span className="n">{passed}</span>
+          <span className="u">/ {totalGates(currentProposal.gate_summary)} gates passed</span>
         </span>
       </div>
 
@@ -164,10 +168,14 @@ function Rejected({ convo }: { convo: ConverseResponse }) {
   return (
     <div className="verdict-card verdict-rejected overflow-hidden">
       <div className="verdict-title">
-        <span aria-hidden className="text-[15px]">✕</span>
-        <span className="main">Blocked / Rejected</span>
-        <span className="ml-auto num text-[12px] text-[var(--text-muted)]">
-          {passed} / {total} gates passed
+        <span className="mark" aria-hidden>✕</span>
+        <div>
+          <div className="main">Blocked / Rejected</div>
+          <div className="sub">Trade cannot proceed — execution disabled</div>
+        </div>
+        <span className="tally">
+          <span className="n">{passed}</span>
+          <span className="u">/ {total} gates passed</span>
         </span>
       </div>
 
@@ -226,8 +234,11 @@ function Clarification({ convo }: { convo: ConverseResponse }) {
   return (
     <div className="verdict-card verdict-clarify overflow-hidden">
       <div className="verdict-title">
-        <span aria-hidden className="text-[15px]">!</span>
-        <span className="main">Clarification Needed</span>
+        <span className="mark" aria-hidden>!</span>
+        <div>
+          <div className="main">Clarification Needed</div>
+          <div className="sub">More information required to continue</div>
+        </div>
       </div>
       <div className="p-4 space-y-2">
         <p className="text-[13.5px] leading-relaxed text-[var(--text-primary)]">

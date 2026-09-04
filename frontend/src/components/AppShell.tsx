@@ -25,7 +25,7 @@ export default function AppShell() {
         </main>
 
         {/* Right Desk panel */}
-        <DeskPanel />
+        <DeskPanel api={system.api} />
       </div>
     </div>
   );
@@ -177,14 +177,15 @@ function RailIconButton({
 }
 
 /* ---------------------------- Desk panel --------------------------- */
-function DeskPanel() {
+function DeskPanel({ api }: { api: SystemStatus["api"] }) {
   const [open, setOpen] = useState(() => window.innerWidth >= 1024);
+  const live = api === "online";
 
   return (
     <>
       {/* Desktop fixed desk */}
       <aside className="hidden w-[340px] shrink-0 flex-col overflow-y-auto border-l border-[var(--border-subtle)] bg-[var(--bg-surface)] lg:flex">
-        <DeskHeader />
+        <DeskHeader live={live} />
         <DeskContent />
       </aside>
 
@@ -223,13 +224,13 @@ function DeskPanel() {
   );
 }
 
-function DeskHeader() {
+function DeskHeader({ live }: { live: boolean }) {
   return (
     <div className="band flex shrink-0 items-center justify-between px-3 py-2.5">
       <span className="label">Desk</span>
-      <span className="sys-ind">
-        <span className="lamp lamp-pass" aria-hidden />
-        <span className="val">LIVE</span>
+      <span className="sys-ind" title={live ? "Feeds connected" : "Feeds disconnected"}>
+        <span className={`lamp ${live ? "lamp-pass" : "lamp-reject"}`} aria-hidden />
+        <span className="val">{live ? "LIVE" : "OFFLINE"}</span>
       </span>
     </div>
   );
@@ -240,14 +241,6 @@ function DeskContent() {
     <div className="space-y-3 p-3">
       <MarketPrices />
       <OrdersPanel />
-      <div className="rounded-lg border border-[var(--border-faint)] bg-[var(--bg-surface-2)] p-3">
-        <div className="label mb-1.5">Deterministic Controls</div>
-        <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
-          Live context for the copilot. Prices refresh every 15s, orders every
-          20s. The gate chain decides compliance — this panel only surfaces it.
-          No LLM approves a trade.
-        </p>
-      </div>
     </div>
   );
 }

@@ -274,7 +274,7 @@
     text-align: left;
   }
   .chip:hover {
-    border-color: var(--accent-dim);
+    border-color: var(--border-strong);
     background: var(--bg-hover);
     color: var(--text-primary);
   }
@@ -348,20 +348,18 @@
   .intent-row {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    padding: 7px 10px;
-    border: 1px solid var(--border-subtle);
-    border-left: 2px solid var(--accent-dim);
-    background: var(--bg-surface-2);
-    border-radius: 8px;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-faint);
   }
   .intent-row .tag {
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--accent-strong);
+    color: var(--text-muted);
     padding-top: 1px;
+    flex-shrink: 0;
   }
 
   /* Operational empty-state panel */
@@ -412,9 +410,10 @@
 
   /* AI assessment prose block */
   .ai-prose {
-    border-left: 2px solid var(--accent-dim);
-    padding-left: 12px;
+    border-left: 2px solid var(--border-strong);
+    padding-left: 14px;
   }
+  .ai-prose .label { color: var(--text-secondary); }
 
   /* Quiet rail icon button */
   .nav-icon {
@@ -430,7 +429,11 @@
     position: relative;
   }
   .nav-icon:hover { color: var(--text-secondary); background: var(--bg-hover); }
-  .nav-icon-active { color: var(--accent-strong); background: var(--accent-ink); border-color: var(--accent-dim); }
+  .nav-icon-active {
+    color: var(--text-primary);
+    background: var(--bg-surface-2);
+    border-color: var(--border-subtle);
+  }
   .nav-icon-active::before {
     content: "";
     position: absolute;
@@ -448,16 +451,107 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 14px;
+    padding: 14px 16px;
     border-bottom: 1px solid var(--border-faint);
+    background: color-mix(in srgb, currentColor 6%, transparent);
+    position: relative;
+  }
+  .verdict-title::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: currentColor;
+  }
+  .verdict-title .mark {
+    font-size: 18px;
+    line-height: 1;
   }
   .verdict-title .main {
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 16px;
+    font-weight: 800;
     letter-spacing: 0.02em;
     text-transform: uppercase;
+  }
+  .verdict-title .sub {
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
   }
   .verdict-ready .verdict-title { color: var(--pass); }
   .verdict-rejected .verdict-title { color: var(--reject); }
   .verdict-clarify .verdict-title { color: var(--warn); }
+
+  /* Verdict gate tally — the hero number */
+  .tally {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+  .tally .n {
+    font-family: var(--font-mono);
+    font-size: 20px;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+  }
+  .tally .u {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* Desk panel unavailable / empty state */
+  .panel-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 18px 14px;
+    text-align: center;
+  }
+  .panel-state .ps-icon {
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-surface-2);
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .panel-state .ps-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+  .panel-state .ps-detail {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-faint);
+    max-width: 230px;
+  }
+  .panel-state .ps-retry {
+    margin-top: 4px;
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+  }
+  .panel-state .ps-retry.online { color: var(--text-secondary); }
+  .panel-state .ps-retry.off { color: var(--text-faint); }
+
+  /* Center workspace background — softer than the Desk, less "card stack" */
+  .workspace-bg {
+    background: color-mix(in srgb, var(--bg-app) 100%, var(--bg-surface) 20%);
+  }
 }
