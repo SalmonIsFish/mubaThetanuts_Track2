@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import CopilotWorkspace from "./CopilotWorkspace";
 import MarketPrices from "./MarketPrices";
 import OrdersPanel from "./OrdersPanel";
+import QuantPanel from "./QuantPanel";
 import GateSpine from "./GateSpine";
 import ComplianceTicker from "./ComplianceTicker";
 import { healthCheck } from "../api/client";
@@ -196,6 +197,7 @@ function DeskPanel() {
 function DeskContent() {
   return (
     <div className="space-y-3 p-3">
+      <QuantPanel />
       <MarketPrices />
       <OrdersPanel />
       <div className="rounded-lg border border-[var(--border-faint)] bg-[var(--bg-surface-2)] p-3">

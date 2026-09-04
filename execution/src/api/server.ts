@@ -241,6 +241,121 @@ app.get(
   }),
 );
 
+// --- Quant Agent (Thetanuts) — autonomous suggestions with confidence + hybrid auto/manual ---
+// Reuses Ai_Finance_Syariah quant S001 (SMA50/200 + 55d breakout) + confidence.py weights 40/30/20/10
+// No Alpaca keys — bars are synthetic trending fixture anchored to live spot from readClient.api.getMarketData()
+// so S001 fires for demo (like quant-agent/agent.py fetch_bars_thetanuts). Syariah is crypto universe COMPLIANT.
+function quantIndicators(closes: number[]) {
+  if (closes.length < 200) return null;
+  const sma = (n: number) => closes.slice(-n).reduce((a, b) => a + b, 0) / n;
+  const sma50 = sma(50);
+  const sma200 = sma(200);
+  const breakoutLevel = Math.max(...closes.slice(-56, -1));
+  const latest = closes[closes.length - 1];
+  const trendOk = sma50 > sma200;
+  const breakoutOk = latest >= breakoutLevel;
+  const breakoutGap = breakoutLevel ? ((latest - breakoutLevel) / breakoutLevel) * 100 : 0;
+  const trendGap = sma200 ? ((sma50 - sma200) / sma200) * 100 : 0;
+  return { sma50, sma200, breakoutLevel, latestClose: latest, trendOk, breakoutOk, breakoutGapPct: breakoutGap, trendGapPct: trendGap };
+}
+function quantScoreBreakout(breakoutGap: number | null, trendGap: number | null) {
+  if (breakoutGap == null) return 0;
+  let breakoutScore = 0.5;
+  if (breakoutGap < -10) breakoutScore = 0.1;
+  else if (breakoutGap < -5) breakoutScore = 0.4 + (breakoutGap + 10) * 0.08;
+  else if (breakoutGap <= 0) breakoutScore = 0.8 + (breakoutGap + 5) * 0.04;
+  else if (breakoutGap <= 3) breakoutScore = 1.0 - breakoutGap * 0.07;
+  else breakoutScore = 0.5;
+  const trendScore = trendGap != null && trendGap > 1 ? 1.0 : trendGap != null && trendGap > 0 ? 0.6 : 0.3;
+  return 0.7 * breakoutScore + 0.3 * trendScore;
+}
+app.get(
+  "/quant/suggestions",
+  asyncRoute(async (req, res) => {
+    const threshold = Math.min(1, Math.max(0, Number(req.query.threshold) || Number(process.env.AUTO_TRADE_THRESHOLD) || 0.80));
+    const spendUsdc = Math.min(3, Math.max(1, Number(req.query.spend) || 2));
+    const assets = (req.query.assets ? String(req.query.assets).split(",").map((s) => s.trim().toUpperCase()) : SUPPORTED_ASSETS).filter((a) =>
+      SUPPORTED_ASSETS.includes(a as SupportedAsset),
+    ) as SupportedAsset[];
+
+    // Live spot anchor for fixture, fallback to map
+    let livePrices: Record<string, number> = {};
+    try {
+      const md = await readClient.api.getMarketData();
+      livePrices = (md as { prices: Record<string, number> }).prices ?? {};
+    } catch {
+      livePrices = { BTC: 79000, ETH: 2450, SOL: 101, AVAX: 7.3, XRP: 1.4, BNB: 715 };
+    }
+    const baseMap: Record<string, number> = { BTC: 79000, ETH: 2450, SOL: 101, AVAX: 7.3, XRP: 1.4, BNB: 715 };
+
+    const suggestions = [];
+    for (const asset of assets) {
+      const base = livePrices[asset] ?? baseMap[asset] ?? 150;
+      // Synthetic 250 closes, uptrend, force breakout for demo cohort
+      const closes: number[] = [];
+      for (let i = 0; i < 250; i++) closes.push(base * (1 + i * 0.0006) + (i % 7) * 0.02);
+      if (["BTC", "ETH", "SOL", "AVAX"].includes(asset)) {
+        closes[closes.length - 1] = Math.max(...closes.slice(-56, -1)) + base * 0.002;
+        closes[closes.length - 2] = closes[closes.length - 1] - base * 0.001;
+      }
+      const ind = quantIndicators(closes);
+      if (!ind || !ind.trendOk || !ind.breakoutOk) continue;
+      // Liquidity variance to demo both auto and manual at higher threshold
+      const spreadMap: Record<string, number> = { BTC: 3.5, ETH: 3.5, SOL: 4.0, AVAX: 11.5, XRP: 12.0, BNB: 4.2 };
+      const premiumMap: Record<string, number> = { BTC: 1.4, ETH: 1.4, SOL: 1.3, AVAX: 0.8, XRP: 0.75, BNB: 1.3 };
+      const spread = spreadMap[asset] ?? 4.5;
+      const premium = premiumMap[asset] ?? 1.2;
+      const strike = Math.round((ind.latestClose * 0.97) * 100) / 100;
+      const optionType: OptionType = asset.charCodeAt(0) % 2 === 0 ? "put" : "call";
+      // Confidence components like quant-agent/confidence.py
+      const technical = quantScoreBreakout(ind.breakoutGapPct, ind.trendGapPct);
+      const compliance = 0.85; // crypto universe COMPLIANT
+      const liquidity = Math.max(0, 1 - spread / 15) * 0.6 + Math.min(1, premium / 2) * 0.4;
+      const riskHeadroom = Math.max(0, 1 - 5 / 40); // 5% projected vs 40% cap
+      const confidence = Math.min(1, Math.max(0, 0.4 * technical + 0.3 * compliance + 0.2 * liquidity + 0.1 * riskHeadroom));
+      const auto = confidence >= threshold;
+      // Live gate preview for this suggestion (same 5 gates as /propose, at that spend)
+      let gateDecision: string | null = null;
+      let blockers: string[] = [];
+      try {
+        const preview = { numContracts: BigInt(0) } as ReturnType<ThetanutsClient["optionBook"]["previewFillOrder"]>;
+        // Use a real order preview if available — try findLiveOrders for this asset
+        const orders = await findLiveOrders(readClient, { asset, optionType });
+        const candidate = orders[0];
+        if (candidate) {
+          const gateReq = buildGateRequest({ asset, optionType, spendUsdc, resolved: { candidate, preview, spotPrice: ind.latestClose, spendUsdcBigint: BigInt(spendUsdc * 1_000_000), delta: candidate.rawApiData?.greeks?.delta ?? null } });
+          const dec = await evaluateTrade(GATE_SERVICE_URL, gateReq);
+          gateDecision = dec.decision;
+          blockers = dec.blockers;
+        }
+      } catch {
+        // leave null
+      }
+      suggestions.push({
+        asset,
+        optionType,
+        strike,
+        dte: 5,
+        otmPct: 3.0,
+        premium,
+        spreadPct: spread,
+        spot: ind.latestClose,
+        quant: { breakoutGapPct: ind.breakoutGapPct, trendGapPct: ind.trendGapPct, reason: `trend ${ind.trendGapPct.toFixed(1)}% + breakout ${ind.breakoutGapPct.toFixed(1)}%` },
+        syariah: { status: "COMPLIANT", score: 85, provider: "CRYPTO_UNIVERSE" },
+        confidence: Math.round(confidence * 10000) / 10000,
+        components: { technical: Math.round(technical * 1000) / 1000, compliance: Math.round(compliance * 1000) / 1000, liquidity: Math.round(liquidity * 1000) / 1000, riskHeadroom: Math.round(riskHeadroom * 1000) / 1000 },
+        auto,
+        gateDecision,
+        blockers,
+        thesis: `${asset} ${optionType} $${strike} OTM3% | trend ${ind.trendGapPct.toFixed(1)}% + breakout ${ind.breakoutGapPct.toFixed(1)}% | conf ${(confidence * 100).toFixed(0)}%`,
+      });
+    }
+    // Sort by confidence desc, auto first like opportunity_scanner rank
+    suggestions.sort((a, b) => b.confidence - a.confidence);
+    res.json(jsonSafe({ threshold, spendUsdc, count: suggestions.length, suggestions }));
+  }),
+);
+
 app.post(
   "/propose",
   asyncRoute(async (req, res) => {
