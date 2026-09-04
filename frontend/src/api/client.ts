@@ -3,12 +3,19 @@ import type {
   ExecuteResponse,
   MarketDataResponse,
   OrdersResponse,
+  PartialIntent,
   ProposeResponse,
   ScreenedOrdersResponse,
   TradeIntent,
 } from "../types";
 
-const BASE = "/api";
+// Respects Vite's `base` so the same build works at domain root (BASE_URL="/")
+// and under a subpath like /thetanuts/ (BASE_URL="/thetanuts/"). In both
+// cases `${BASE_URL}api` resolves to the correct nginx location. Override
+// with VITE_API_BASE at build time if the API lives elsewhere.
+const _rawBase =
+  (import.meta.env.VITE_API_BASE as string | undefined) ?? `${import.meta.env.BASE_URL}api`;
+const BASE = _rawBase.replace(/\/$/, "") || "/api";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -72,9 +79,12 @@ export async function executeTrade(
   });
 }
 
-export async function converse(prompt: string): Promise<ConverseResponse> {
+export async function converse(
+  prompt: string,
+  priorIntent?: PartialIntent | null,
+): Promise<ConverseResponse> {
   return request("/converse", {
     method: "POST",
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt, priorIntent: priorIntent ?? null }),
   });
 }

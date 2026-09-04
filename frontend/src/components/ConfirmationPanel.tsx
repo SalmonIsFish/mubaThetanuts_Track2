@@ -8,6 +8,7 @@ interface Props {
   onConfirm: () => void;
   onCancel: () => void;
   executing: boolean;
+  error?: string | null;
 }
 
 export default function ConfirmationPanel({
@@ -16,6 +17,7 @@ export default function ConfirmationPanel({
   onConfirm,
   onCancel,
   executing,
+  error,
 }: Props) {
   const totalCollateralUsd = Number(data.preview?.totalCollateral ?? "0") / 1_000_000;
 
@@ -39,7 +41,7 @@ export default function ConfirmationPanel({
           />
           <Field label="Contracts" value={fmtNum(data.numContractsHuman, 6)} />
           <Field label="Spot" value={fmtUsd(data.spotPrice)} />
-          <Field label="Decision" value="READY_FOR_EXECUTION" mono={false} />
+          <Field label="Decision" value={data.decision} mono={false} />
         </div>
       </div>
 
@@ -51,6 +53,13 @@ export default function ConfirmationPanel({
         no private key touches this browser.
       </p>
 
+      {error && (
+        <div className="rounded-lg border border-[var(--reject-border)] bg-[var(--reject-bg)]/40 px-3 py-2.5">
+          <div className="text-[12.5px] font-medium text-[var(--reject)]">Execution failed</div>
+          <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--text-muted)]">{error}</p>
+        </div>
+      )}
+
       <div className="flex gap-2">
         <button
           onClick={onConfirm}
@@ -58,7 +67,7 @@ export default function ConfirmationPanel({
           className="btn btn-execute flex-1"
         >
           {executing && <Spinner size={14} />}
-          {executing ? "Executing…" : "Confirm & Execute"}
+          {executing ? "Executing…" : error ? "Retry" : "Confirm & Execute"}
         </button>
         <button onClick={onCancel} disabled={executing} className="btn btn-ghost">
           Cancel

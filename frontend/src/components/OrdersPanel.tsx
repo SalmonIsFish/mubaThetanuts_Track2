@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { getOrders } from "../api/client";
-import type { OrderEntry } from "../types";
+import { getScreenedOrders } from "../api/client";
+import type { ScreenedOrder } from "../types";
+import { fmtNum } from "../lib/format";
+import AssetIcon from "./AssetIcon";
 
 type TypeFilter = "all" | "put" | "call";
 
@@ -10,8 +12,12 @@ const FILTERS: { value: TypeFilter; label: string }[] = [
   { value: "call", label: "Calls" },
 ];
 
+// Every row here is a real /orders/screened result -- the live book run
+// through the same gate chain a trade would hit, not a decorative order
+// list. That's the point: compliance isn't only checked when a user asks.
 export default function OrdersPanel() {
-  const [orders, setOrders] = useState<OrderEntry[]>([]);
+  const [orders, setOrders] = useState<ScreenedOrder[]>([]);
+  const [compliantCount, setCompliantCount] = useState(0);
   const [filter, setFilter] = useState<TypeFilter>("all");
   const [error, setError] = useState<string | null>(null);
 
@@ -20,9 +26,10 @@ export default function OrdersPanel() {
     let poll: number;
     async function load() {
       try {
-        const data = await getOrders();
+        const data = await getScreenedOrders({ limit: 60 });
         if (active) {
-          setOrders(data.orders);
+          setOrders(data.screened);
+          setCompliantCount(data.compliantCount);
           setError(null);
         }
       } catch (e) {
@@ -37,18 +44,15 @@ export default function OrdersPanel() {
     };
   }, []);
 
-  const filtered =
-    filter === "all"
-      ? orders
-      : orders.filter((o) => (filter === "call") === Boolean(o.rawApiData?.isCall));
-
-  const putCount = orders.filter((o) => !o.rawApiData?.isCall).length;
+  const filtered = filter === "all" ? orders : orders.filter((o) => o.optionType === filter);
 
   return (
     <section className="surface p-3.5">
       <header className="mb-2.5 flex items-center justify-between">
-        <h3 className="label">Live Orders</h3>
-        <span className="num text-[11px] text-[var(--text-muted)]">{orders.length}</span>
+        <h3 className="label">Live Orders — Screened</h3>
+        <span className="num text-[11px] text-[var(--text-muted)]">
+          <span className="text-[var(--pass)]">{compliantCount}</span>/{orders.length} compliant
+        </span>
       </header>
 
       <div className="mb-2.5 flex gap-1">
@@ -84,24 +88,21 @@ export default function OrdersPanel() {
           <OrderRow key={i} order={o} />
         ))}
       </div>
-
-      <p className="mt-2 text-[10.5px] text-[var(--text-faint)]">
-        {filter} · {putCount} puts listed
-      </p>
     </section>
   );
 }
 
-function OrderRow({ order }: { order: OrderEntry }) {
-  const isCall = Boolean(order.rawApiData?.isCall);
-  const strikeRaw = readStrike(order);
-  const delta = order.rawApiData?.greeks?.delta;
+function OrderRow({ order }: { order: ScreenedOrder }) {
+  const isCall = order.optionType === "call";
+  const pass = order.decision === "READY_FOR_EXECUTION";
+  const absDelta = order.gate_summary?.delta_gate?.abs_delta as number | undefined;
 
   return (
-    <div className="row flex items-center justify-between py-2 text-[12px]">
-      <div className="flex items-center gap-2">
+    <div className="row flex items-center justify-between gap-2 py-2 text-[12px]">
+      <div className="flex min-w-0 items-center gap-1.5">
+        {order.asset && <AssetIcon asset={order.asset} size={16} />}
         <span
-          className={`inline-flex h-5 min-w-[40px] items-center justify-center rounded px-1.5 text-[10.5px] font-semibold uppercase ${
+          className={`inline-flex h-5 min-w-[36px] items-center justify-center rounded px-1.5 text-[10.5px] font-semibold uppercase ${
             isCall
               ? "bg-[var(--info-bg)] text-[var(--info)] border border-[var(--info-border)]"
               : "bg-[var(--warn-bg)] text-[var(--warn)] border border-[var(--warn-border)]"
@@ -109,26 +110,15 @@ function OrderRow({ order }: { order: OrderEntry }) {
         >
           {isCall ? "Call" : "Put"}
         </span>
-        <span className="num text-[var(--text-secondary)]">
-          {strikeRaw != null ? `$${formatStrike(strikeRaw)}` : "—"}
-        </span>
+        <span className="num text-[var(--text-secondary)]">${fmtNum(order.strike, 0)}</span>
       </div>
-      <span className="num text-[11px] text-[var(--text-muted)]">
-        {delta != null ? `Δ ${delta.toFixed(3)}` : ""}
-      </span>
+      <div className="flex shrink-0 items-center gap-2">
+        {absDelta != null && <span className="num text-[11px] text-[var(--text-muted)]">Δ {absDelta.toFixed(3)}</span>}
+        <span
+          className={`h-1.5 w-1.5 shrink-0 rounded-full ${pass ? "bg-[var(--pass)]" : "bg-[var(--reject)]"}`}
+          title={pass ? "Ready for execution" : order.blockers.join(", ")}
+        />
+      </div>
     </div>
   );
-}
-
-function readStrike(order: OrderEntry): number | null {
-  const s = (order.order?.strikes as unknown) as Array<string | number> | undefined;
-  if (!Array.isArray(s) || s.length === 0) return null;
-  const first = s[0];
-  const n = typeof first === "number" ? first : Number(first);
-  if (!Number.isFinite(n)) return null;
-  return n / 1e8;
-}
-
-function formatStrike(n: number): string {
-  return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 }

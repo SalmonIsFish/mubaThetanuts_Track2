@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { getMarketData } from "../api/client";
-import { fmtUsd, assetIcon } from "../lib/format";
+import { fmtUsd } from "../lib/format";
+import AssetIcon from "./AssetIcon";
 
-const ASSETS = ["ETH", "BTC", "SOL"];
+const ASSETS = ["ETH", "BTC", "SOL", "AVAX", "XRP", "BNB"];
 
 export default function MarketPrices() {
   const [prices, setPrices] = useState<Record<string, number>>({});
@@ -34,10 +35,19 @@ export default function MarketPrices() {
     <section className="surface p-3.5">
       <header className="flex items-center justify-between mb-2.5">
         <h3 className="label">Live Market</h3>
-        <span
-          className={`h-1.5 w-1.5 rounded-full ${error ? "bg-[var(--reject)]" : "bg-[var(--pass)]"}`}
-          title={error ?? "Live"}
-        />
+        <div className="flex items-center gap-2">
+          <span
+            className="num rounded border px-1.5 py-[1px] text-[10px] font-semibold"
+            style={{ color: "var(--chain-strong)", background: "var(--chain-ink)", borderColor: "var(--chain-dim)" }}
+            title="Settles on Base mainnet"
+          >
+            BASE · 8453
+          </span>
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${error ? "bg-[var(--reject)]" : "bg-[var(--pass)]"}`}
+            title={error ?? "Live"}
+          />
+        </div>
       </header>
 
       {error && (
@@ -53,9 +63,7 @@ export default function MarketPrices() {
             className="flex items-center justify-between rounded-md px-2 py-1.5 transition-colors hover:bg-[var(--bg-hover)]"
           >
             <div className="flex items-center gap-2.5">
-              <span className="flex h-6 w-6 items-center justify-center rounded border border-[var(--border-subtle)] bg-[var(--bg-surface-2)] text-[13px] text-[var(--text-secondary)]">
-                {assetIcon(a)}
-              </span>
+              <AssetIcon asset={a} size={22} />
               <span className="text-[13px] font-medium text-[var(--text-primary)]">
                 {a}
               </span>

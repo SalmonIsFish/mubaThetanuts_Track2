@@ -46,10 +46,17 @@ export interface ExecuteResponse {
 
 export type ConverseStatus = "ready" | "rejected" | "clarification_needed";
 
+export interface PartialIntent {
+  asset: string | null;
+  optionType: string | null;
+  spendUsdc: number | null;
+}
+
 export interface ConverseResponse {
   status: ConverseStatus;
   actionable_data: ProposeResponse | null;
   ai_explanation: string;
+  partial_intent?: PartialIntent | null;
 }
 
 export interface MarketDataResponse {

@@ -2,25 +2,54 @@ import { useEffect, useState } from "react";
 import CopilotWorkspace from "./CopilotWorkspace";
 import MarketPrices from "./MarketPrices";
 import OrdersPanel from "./OrdersPanel";
+import GateSpine from "./GateSpine";
+import ComplianceTicker from "./ComplianceTicker";
 import { healthCheck } from "../api/client";
+import type { GateSummary } from "../types";
 
 type View = "copilot";
 
+interface LatestGate {
+  gateSummary: GateSummary;
+  decision: string;
+}
+
 export default function AppShell() {
   const [view, setView] = useState<View>("copilot");
+  const [latestGate, setLatestGate] = useState<LatestGate | null>(null);
+  const [gateRevision, setGateRevision] = useState(0);
+
+  function onGateResult(next: LatestGate) {
+    setLatestGate(next);
+    setGateRevision((r) => r + 1);
+  }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden">
-      {/* Left nav rail */}
-      <SideRail view={view} onView={setView} />
+    <div className="flex h-screen w-screen flex-col overflow-hidden">
+      {/* Persistent compliance masthead -- visible before a single message
+          is sent, so the pipeline is the first thing anyone sees. */}
+      <header className="shrink-0 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-2.5">
+        <GateSpine
+          gateSummary={latestGate?.gateSummary ?? null}
+          decision={latestGate?.decision ?? null}
+          revision={gateRevision}
+        />
+      </header>
 
-      {/* Main workspace */}
-      <main className="flex-1 min-w-0 overflow-hidden">
-        <CopilotWorkspace />
-      </main>
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Left nav rail */}
+        <SideRail view={view} onView={setView} />
 
-      {/* Right Desk panel */}
-      <DeskPanel />
+        {/* Main workspace */}
+        <main className="flex-1 min-w-0 overflow-hidden">
+          <CopilotWorkspace onGateResult={onGateResult} />
+        </main>
+
+        {/* Right Desk panel */}
+        <DeskPanel />
+      </div>
+
+      <ComplianceTicker />
     </div>
   );
 }

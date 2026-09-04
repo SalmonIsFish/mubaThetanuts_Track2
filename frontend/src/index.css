@@ -34,6 +34,15 @@
     --accent-dim: #114f47;
     --accent-ink: #0f3d37;
 
+    /* Chain accent — Base's own brand blue. Used sparingly and specifically:
+       the network badge, the chain_id risk-check, primary interactive chrome
+       — anywhere the point is "this settles on Base mainnet," not generic
+       decoration. */
+    --chain: #0052ff;
+    --chain-strong: #6690ff;
+    --chain-dim: #0a2359;
+    --chain-ink: #0a1c3d;
+
     /* System state — color reserved for state only */
     --pass: #34d399;      /* emerald — ready */
     --pass-bg: #0d2a20;
@@ -48,8 +57,34 @@
     --info-bg: #0e1b2e;
     --info-border: #1e3a5f;
 
-    /* Type */
-    --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    /* Underlying-universe category taxonomy (gate-chain/data/crypto-underlying-
+       universe.json's own categories) — a distinct, non-semantic palette so
+       "what kind of asset is this" reads at a glance without colliding with
+       the pass/reject/warn state colors above. */
+    --cat-crypto: #6690ff;
+    --cat-crypto-bg: #0a1c3d;
+    --cat-crypto-border: #17346e;
+    --cat-stable: #5eead4;
+    --cat-stable-bg: #0f3d37;
+    --cat-stable-border: #114f47;
+    --cat-gold: #d4a54a;
+    --cat-gold-bg: #2b2308;
+    --cat-gold-border: #5c4813;
+    --cat-clay: #d98a5e;
+    --cat-clay-bg: #2b1c10;
+    --cat-clay-border: #5c3a1f;
+    --cat-violet: #b39dff;
+    --cat-violet-bg: #201a3d;
+    --cat-violet-border: #3a2f6e;
+    --cat-debt: #6b7686;
+    --cat-debt-bg: #1a1d23;
+    --cat-debt-border: #2a3542;
+
+    /* Type — Space Grotesk carries the instrument's personality in UI chrome
+       and prose; JetBrains Mono is reserved for anything that is a number
+       (prices, deltas, strikes, addresses, tx hashes) so figures always read
+       with quant-terminal precision, not proportional-font approximation. */
+    --font-sans: "Space Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
     --font-mono: "JetBrains Mono", "SFMono-Regular", "Roboto Mono", Menlo, monospace;
   }
 
@@ -305,6 +340,103 @@
     }
     100% {
       background-position: -200% 0;
+    }
+  }
+
+  /* ---------------------------- Gate spine ---------------------------- */
+  /* Each checkpoint resolves in sequence (a real, ordered pipeline — see
+     gate-chain/gate_coordinator.py), so the reveal is staggered by --i to
+     match: a live audience watches verification happen rather than reading
+     a static list that all appeared at once. */
+  /* NOTE: `animation` is a shorthand -- two classes on the same element each
+     setting it independently do NOT merge; whichever rule wins the cascade
+     replaces the whole declaration and silently drops the other animation.
+     Reveal + glow are therefore combined into single comma-separated
+     `animation`/`animation-delay` lists per status, never split across
+     classes that could compete for the same element. */
+  .gate-chip {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  .gate-chip[data-idle="true"] {
+    opacity: 1;
+    transform: none;
+  }
+  .gate-chip[data-idle="false"][data-status="pass"] {
+    animation:
+      gate-resolve 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards,
+      glow-pass 900ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: calc(var(--i, 0) * 140ms), calc(var(--i, 0) * 140ms + 220ms);
+  }
+  .gate-chip[data-idle="false"][data-status="reject"] {
+    animation:
+      gate-resolve 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards,
+      glow-reject 900ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: calc(var(--i, 0) * 140ms), calc(var(--i, 0) * 140ms + 220ms);
+  }
+  .gate-row-reveal {
+    opacity: 0;
+    transform: translateY(4px);
+    animation: gate-resolve 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: calc(var(--i, 0) * 110ms);
+  }
+  @keyframes gate-resolve {
+    0% {
+      opacity: 0;
+      transform: translateY(3px) scale(0.97);
+    }
+    60% {
+      opacity: 1;
+      transform: translateY(0) scale(1.015);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  @keyframes glow-pass {
+    0% {
+      box-shadow: 0 0 0 0 rgb(52 211 153 / 0);
+    }
+    35% {
+      box-shadow: 0 0 0 4px rgb(52 211 153 / 0.18);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgb(52 211 153 / 0);
+    }
+  }
+  @keyframes glow-reject {
+    0% {
+      box-shadow: 0 0 0 0 rgb(251 113 133 / 0);
+    }
+    35% {
+      box-shadow: 0 0 0 4px rgb(251 113 133 / 0.18);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgb(251 113 133 / 0);
+    }
+  }
+
+  /* --------------------------- Compliance ticker ------------------------ */
+  .ticker-track {
+    display: flex;
+    width: max-content;
+    animation: ticker-scroll 42s linear infinite;
+  }
+  .ticker-track:hover {
+    animation-play-state: paused;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ticker-track {
+      animation: none;
+    }
+  }
+  @keyframes ticker-scroll {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
     }
   }
 }

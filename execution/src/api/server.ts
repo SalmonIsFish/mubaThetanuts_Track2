@@ -14,7 +14,7 @@ import "dotenv/config";
 import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import { ethers } from "ethers";
-import { ThetanutsClient } from "@thetanuts-finance/thetanuts-client";
+import { ThetanutsClient, type OrderWithSignature } from "@thetanuts-finance/thetanuts-client";
 import { evaluateTrade, requireReadyForExecution } from "../gateClient.js";
 import {
   resolveTradeIntent,
@@ -131,6 +131,40 @@ app.get(
 const SCREENING_NOTIONAL_USD = 2;
 
 /**
+ * The live order book is heavily skewed toward BTC/ETH (hundreds of orders
+ * each) versus the newer assets (tens each), and the indexer returns them
+ * grouped by asset rather than interleaved -- a plain `orders.slice(0,
+ * limit)` would silently exclude every less-liquid asset from any view with
+ * a limit smaller than BTC+ETH's combined count. Round-robin across assets
+ * instead so every asset with live orders gets fair representation, up to
+ * how many orders it actually has.
+ */
+function interleaveByAsset(orders: OrderWithSignature[], client: ThetanutsClient, limit: number): OrderWithSignature[] {
+  const groups = new Map<string, OrderWithSignature[]>();
+  for (const order of orders) {
+    const asset = assetForOrder(client, order) ?? "unresolved";
+    const group = groups.get(asset);
+    if (group) group.push(order);
+    else groups.set(asset, [order]);
+  }
+
+  const result: OrderWithSignature[] = [];
+  let tookAny = true;
+  while (tookAny && result.length < limit) {
+    tookAny = false;
+    for (const group of groups.values()) {
+      const next = group.shift();
+      if (next) {
+        result.push(next);
+        tookAny = true;
+        if (result.length >= limit) break;
+      }
+    }
+  }
+  return result;
+}
+
+/**
  * Analytics view: every live order, annotated with its own gate-chain
  * verdict -- "which of what's live on Thetanuts right now is actually
  * Shariah/risk screenable." No wallet needed, nothing is proposed or
@@ -160,7 +194,7 @@ app.get(
     });
 
     const screened = await Promise.all(
-      orders.slice(0, limit).map(async (order) => {
+      interleaveByAsset(orders, readClient, limit).map(async (order) => {
         const orderAsset = assetForOrder(readClient, order);
         const orderType: OptionType = order.rawApiData?.isCall ? "call" : "put";
         if (!orderAsset) {
@@ -243,38 +277,87 @@ app.post(
  * the trade decision itself still only ever comes from gate-chain, called
  * exactly the way /propose calls it.
  */
+interface PartialIntent {
+  asset: SupportedAsset | null;
+  optionType: OptionType | null;
+  spendUsdc: number | null;
+}
+
+// The client-supplied carry-over from a prior clarification_needed turn --
+// untrusted input, sanitized field-by-field rather than trusted wholesale.
+function parsePriorIntent(body: unknown): PartialIntent {
+  const p = (body as { priorIntent?: Partial<PartialIntent> } | null)?.priorIntent;
+  const asset = p && SUPPORTED_ASSETS.includes(p.asset as SupportedAsset) ? (p.asset as SupportedAsset) : null;
+  const optionType = p?.optionType === "put" || p?.optionType === "call" ? p.optionType : null;
+  const spendUsdc = typeof p?.spendUsdc === "number" && Number.isFinite(p.spendUsdc) ? p.spendUsdc : null;
+  return { asset, optionType, spendUsdc };
+}
+
+function missingFieldQuestion(intent: PartialIntent): string | null {
+  if (!intent.asset) return `What asset do you want to trade (${SUPPORTED_ASSETS.join(", ")})?`;
+  if (!intent.optionType) return "Do you want a put or a call?";
+  if (intent.spendUsdc == null) return "What dollar amount do you want to spend on the option?";
+  return null;
+}
+
 app.post(
   "/converse",
   asyncRoute(async (req, res) => {
     const prompt = String((req.body as { prompt?: unknown } | null)?.prompt ?? "");
     if (!prompt.trim()) throw new HttpError(400, "Request body must include a non-empty `prompt` string.");
 
-    const intent = await parseIntent(prompt);
+    const prior = parsePriorIntent(req.body);
+    const extracted = await parseIntent(prompt);
 
-    if (!intent.understood || !intent.asset || !intent.optionType || intent.spendUsdc == null) {
+    // Slot-filling merge: each /converse call only ever extracts from the
+    // single latest message (parseIntent has no memory of its own), so a
+    // fact given two turns ago would otherwise be forgotten the instant the
+    // next clarifying question is asked -- this is what caused the
+    // asset<->amount clarification loop. The new turn's extraction wins
+    // where it says something; anything it leaves null falls back to what
+    // an earlier turn already established.
+    const merged: PartialIntent = {
+      asset: extracted.asset ?? prior.asset,
+      optionType: extracted.optionType ?? prior.optionType,
+      spendUsdc: extracted.spendUsdc ?? prior.spendUsdc,
+    };
+
+    const question = missingFieldQuestion(merged);
+    if (question) {
+      // If this turn didn't add anything new (asset/optionType/spendUsdc all
+      // unchanged from the prior turn), the message was probably off-topic
+      // or unsupported (e.g. "sell a call") -- prefer the model's own
+      // clarification, which explains why, over the generic missing-field
+      // question. Otherwise always ask about a field that's still actually
+      // missing, never one already resolved by an earlier turn.
+      const madeProgress =
+        merged.asset !== prior.asset ||
+        merged.optionType !== prior.optionType ||
+        merged.spendUsdc !== prior.spendUsdc;
       res.json({
         status: "clarification_needed",
         actionable_data: null,
-        ai_explanation:
-          intent.clarification ?? "Could you clarify the asset, put/call, and how much to spend?",
+        ai_explanation: !madeProgress && extracted.clarification ? extracted.clarification : question,
+        partial_intent: merged,
       });
       return;
     }
 
-    // Re-validate the LLM's extraction against the same rules /propose
-    // enforces (hard cap, supported side) -- the LLM's output is treated as
-    // untrusted input here, not as a pre-cleared request.
+    // Re-validate the merged intent against the same rules /propose
+    // enforces (hard cap, supported side) -- treated as untrusted input
+    // here, not as a pre-cleared request, regardless of which turn(s) it
+    // was assembled from.
     let validated: { asset: SupportedAsset; optionType: OptionType; spendUsdc: number };
     try {
       validated = parseTradeBody({
-        asset: intent.asset,
-        optionType: intent.optionType,
+        asset: merged.asset,
+        optionType: merged.optionType,
         side: "BUY",
-        spendUsdc: intent.spendUsdc,
+        spendUsdc: merged.spendUsdc,
       });
     } catch (err) {
       const message = err instanceof HttpError ? err.message : "That request isn't valid.";
-      res.json({ status: "clarification_needed", actionable_data: null, ai_explanation: message });
+      res.json({ status: "clarification_needed", actionable_data: null, ai_explanation: message, partial_intent: merged });
       return;
     }
 
@@ -287,6 +370,7 @@ app.post(
       preview: resolved.preview,
       numContractsHuman: numContractsHuman(resolved.preview),
       spotPrice: resolved.spotPrice,
+      decision: decision.decision,
       blockers: decision.blockers,
       gate_summary: decision.gate_summary,
       requires_delta_recheck_before_settlement: decision.requires_delta_recheck_before_settlement,

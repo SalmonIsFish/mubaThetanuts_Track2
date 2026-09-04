@@ -38,6 +38,33 @@
       "rationale": "Native network asset, non-interest-bearing. Same caveat as ETH: liquid-staking derivative tokens are separate records, not implicitly covered."
     },
     {
+      "symbol": "AVAX",
+      "asset_name": "Avalanche",
+      "role": "underlying",
+      "category": "crypto_native",
+      "tradable_on_thetanuts": true,
+      "shariah_status": "COMPLIANT",
+      "rationale": "Native network asset (gas/consensus token of the Avalanche L1), non-interest-bearing in itself -- no embedded coupon or debt claim. Same caveat as ETH/SOL: this record covers spot AVAX only. Avalanche's own Proof-of-Stake validation rewards accrue to staked AVAX, not spot holdings; any staking-derivative or liquid-staked wrapper is a separate, non-covered record and default-rejects."
+    },
+    {
+      "symbol": "XRP",
+      "asset_name": "XRP",
+      "role": "underlying",
+      "category": "crypto_native",
+      "tradable_on_thetanuts": true,
+      "shariah_status": "COMPLIANT",
+      "rationale": "Native asset of the XRP Ledger, used to pay (and burn, not redistribute) network transaction fees and to bridge cross-currency settlement. No embedded yield, coupon, or debt claim -- the XRPL has no token-staking mechanism, so there is no derivative-yield carve-out needed the way ETH/SOL/AVAX require. Note (regulatory, not fiqh): XRP's status as a security was separately litigated in the US (SEC v. Ripple); that question is orthogonal to this Riba/Gharar/Maysir screen but worth surfacing to a reviewer."
+    },
+    {
+      "symbol": "BNB",
+      "asset_name": "BNB",
+      "role": "underlying",
+      "category": "crypto_native",
+      "tradable_on_thetanuts": true,
+      "shariah_status": "COMPLIANT",
+      "rationale": "Native gas/utility token of BNB Chain. No embedded yield or coupon; periodic supply burns are deflationary, not an interest mechanism, so they raise no Riba concern by themselves. Note (governance/regulatory, not fiqh): BNB is closely tied to a single centralized issuer (Binance), which has faced its own regulatory actions including from the SEC -- a concentration/counterparty consideration worth surfacing to a reviewer, separate from this screen's Riba/Gharar/Maysir scope."
+    },
+    {
       "symbol": "cbBTC",
       "asset_name": "Coinbase Wrapped BTC",
       "role": "underlying_or_collateral",

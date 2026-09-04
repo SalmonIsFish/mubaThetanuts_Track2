@@ -21,16 +21,23 @@
  * (the SDK's own `deriveUnderlyingFromPriceFeed` helper only has BTC/ETH in
  * its lookup table -- SOL orders resolve to the zero address). Instead this
  * matches each order's `rawApiData.priceFeed` address against
- * `client.chainConfig.priceFeeds`, which does have all three
- * (ETH/BTC/SOL) Chainlink feed addresses for Base mainnet.
+ * `client.chainConfig.priceFeeds`, which covers every asset in
+ * SUPPORTED_ASSETS below on Base mainnet (verified by dumping
+ * client.chainConfig.priceFeeds directly -- it currently has entries for
+ * ETH/BTC/SOL/DOGE/XRP/BNB/PAXG/AVAX, a superset of what's wired up here).
  */
 import type { OrderWithSignature, ThetanutsClient } from "@thetanuts-finance/thetanuts-client";
 import type { GateTradeRequest } from "./gateClient.js";
 
-export type SupportedAsset = "BTC" | "ETH" | "SOL";
+export type SupportedAsset = "BTC" | "ETH" | "SOL" | "AVAX" | "XRP" | "BNB";
 export type OptionType = "put" | "call";
 
-export const SUPPORTED_ASSETS: SupportedAsset[] = ["BTC", "ETH", "SOL"];
+// Every entry here needs both (a) a live priceFeed in the SDK's chainConfig
+// and (b) a Shariah-screened record in data/crypto-underlying-universe.json
+// -- underlying_screen.py fail-closes on the latter regardless of whether
+// live orders exist, so listing an asset here that isn't in that dataset
+// yet just means every trade on it gets rejected with symbol_not_in_universe.
+export const SUPPORTED_ASSETS: SupportedAsset[] = ["BTC", "ETH", "SOL", "AVAX", "XRP", "BNB"];
 
 function buildPriceFeedToAssetMap(client: ThetanutsClient): Map<string, SupportedAsset> {
   const map = new Map<string, SupportedAsset>();

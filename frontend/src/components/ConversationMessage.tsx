@@ -78,6 +78,7 @@ function Ready({
   const proposal = convo.actionable_data;
   const [confirming, setConfirming] = useState(false);
   const [executing, setExecuting] = useState(false);
+  const [executeError, setExecuteError] = useState<string | null>(null);
 
   if (!proposal) return null;
   const currentProposal: ProposeResponse = proposal;
@@ -85,9 +86,12 @@ function Ready({
 
   async function run() {
     setExecuting(true);
+    setExecuteError(null);
     try {
       await onExecute(currentProposal);
       setConfirming(false);
+    } catch (e) {
+      setExecuteError(e instanceof Error ? e.message : "Execution failed. Please try again.");
     } finally {
       setExecuting(false);
     }
@@ -122,6 +126,7 @@ function Ready({
           onConfirm={run}
           onCancel={() => setConfirming(false)}
           executing={executing}
+          error={executeError}
         />
       )}
     </div>

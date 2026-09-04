@@ -1,5 +1,6 @@
 import type { GateSummary } from "../types";
 import { friendlyReason } from "../lib/format";
+import CategoryBadge from "./CategoryBadge";
 
 interface Props {
   gateSummary: GateSummary;
@@ -130,9 +131,10 @@ export default function GateChecklist({ gateSummary, blockers = [], decision }: 
           return (
             <div
               key={key}
-              className={`flex items-start gap-3 px-3 py-2.5 ${
+              className={`gate-row-reveal flex items-start gap-3 px-3 py-2.5 ${
                 idx > 0 ? "border-t border-[var(--border-faint)]" : ""
               } ${!pass ? "bg-[var(--reject-bg)]/30" : ""}`}
+              style={{ "--i": idx } as React.CSSProperties}
             >
               <div className="mt-0.5 shrink-0 rounded-md border border-[var(--border-faint)] bg-[var(--bg-surface-2)] p-1.5 flex items-center justify-center">
                 <GateIcon name={key} pass={pass} />
@@ -146,6 +148,7 @@ export default function GateChecklist({ gateSummary, blockers = [], decision }: 
                     <span aria-hidden>{pass ? "✓" : "✕"}</span>
                     {pass ? "Pass" : "Rejected"}
                   </span>
+                  <CategoryBadge category={rowCategory(key, verdict)} />
                 </div>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5 break-words">
                   {pass
@@ -160,6 +163,14 @@ export default function GateChecklist({ gateSummary, blockers = [], decision }: 
       </div>
     </div>
   );
+}
+
+/** underlying_screen carries category directly; collateral_gate nests it
+ * under token_screen (the collateral token's own compliance check). */
+function rowCategory(key: string, v: Record<string, unknown>): string | undefined {
+  if (key === "underlying_screen") return v.category as string | undefined;
+  if (key === "collateral_gate") return (v.token_screen as { category?: string } | undefined)?.category;
+  return undefined;
 }
 
 function verdictSymbolSuffix(

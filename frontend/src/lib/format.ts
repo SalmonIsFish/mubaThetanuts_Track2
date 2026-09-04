@@ -1,15 +1,5 @@
 import type { ProposeResponse, TradeIntent } from "../types";
 
-const ASSET_ICONS: Record<string, string> = {
-  ETH: "Ξ",
-  BTC: "₿",
-  SOL: "◎",
-};
-
-export function assetIcon(symbol: string): string {
-  return ASSET_ICONS[symbol.toUpperCase()] ?? symbol.charAt(0);
-}
-
 export function fmtUsd(n: number | undefined, digits = 2): string {
   if (n == null || Number.isNaN(n)) return "—";
   return `$${n.toLocaleString("en-US", {

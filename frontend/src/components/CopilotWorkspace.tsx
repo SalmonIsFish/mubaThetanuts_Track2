@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { converse, executeTrade } from "../api/client";
-import type { ConverseResponse, ProposeResponse } from "../types";
+import type { ConverseResponse, GateSummary, PartialIntent, ProposeResponse } from "../types";
 import ConversationMessage, {
   type ChatMessageData,
 } from "./ConversationMessage";
@@ -14,11 +14,16 @@ const SUGGESTIONS = [
   "Ask about an options spread",
 ];
 
-export default function CopilotWorkspace() {
+interface Props {
+  onGateResult?: (result: { gateSummary: GateSummary; decision: string }) => void;
+}
+
+export default function CopilotWorkspace({ onGateResult }: Props) {
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingIntent, setPendingIntent] = useState<PartialIntent | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -43,7 +48,7 @@ export default function CopilotWorkspace() {
 
     let response: ConverseResponse;
     try {
-      response = await converse(trimmed);
+      response = await converse(trimmed, pendingIntent);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong";
       setError(msg);
@@ -59,6 +64,19 @@ export default function CopilotWorkspace() {
     }
     setLoading(false);
 
+    // Carry forward whatever slots (asset/optionType/spendUsdc) are still
+    // known so the next message only needs to fill in what's missing --
+    // otherwise each turn forgets everything said before it and the
+    // clarification loop never terminates.
+    setPendingIntent(response.status === "clarification_needed" ? response.partial_intent ?? null : null);
+
+    if (response.actionable_data) {
+      onGateResult?.({
+        gateSummary: response.actionable_data.gate_summary,
+        decision: response.actionable_data.decision,
+      });
+    }
+
     setMessages((prev) => [
       ...prev,
       {
@@ -72,16 +90,25 @@ export default function CopilotWorkspace() {
 
   async function handleExecute(proposal: ProposeResponse) {
     const intent = tradeIntentFromProposal(proposal);
-    const result = await executeTrade(intent);
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        content: `Executed ${intent.asset} ${intent.optionType.toUpperCase()} — ${result.txHash.slice(0, 10)}…`,
-        executeResult: result,
-      },
-    ]);
-    return result;
+    try {
+      const result = await executeTrade(intent);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Executed ${intent.asset} ${intent.optionType.toUpperCase()} — ${result.txHash.slice(0, 10)}…`,
+          executeResult: result,
+        },
+      ]);
+      return result;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Execution failed for an unknown reason.";
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: `Execution failed: ${msg}` },
+      ]);
+      throw e;
+    }
   }
 
   function onSuggestion(s: string) {
@@ -120,7 +147,7 @@ export default function CopilotWorkspace() {
           {error && (
             <div className="mt-4 rounded-lg border border-[var(--reject-border)] bg-[var(--reject-bg)]/40 px-4 py-3">
               <div className="flex items-center gap-2">
-                <StatusGlyph />
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--reject)]" />
                 <span className="text-[13px] text-[var(--reject)] font-medium">
                   API connection error
                 </span>
@@ -170,25 +197,13 @@ export default function CopilotWorkspace() {
 function CopilotHeader() {
   return (
     <div className="shrink-0 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/80 px-5 py-3">
-      <div className="mx-auto max-w-3xl flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="h-2 w-2 rounded-full bg-[var(--pass)] shadow-[0_0_6px_rgba(52,211,153,0.7)]" />
-          <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-            AI Copilot
-          </span>
-        </div>
-        <StatusGlyph />
+      <div className="mx-auto max-w-3xl flex items-center gap-2.5">
+        <div className="h-2 w-2 rounded-full bg-[var(--pass)] shadow-[0_0_6px_rgba(52,211,153,0.7)]" />
+        <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+          AI Copilot
+        </span>
       </div>
     </div>
-  );
-}
-
-function StatusGlyph() {
-  return (
-    <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
-      <span className="h-1.5 w-1.5 rounded-full bg-[var(--pass)]" />
-      Gate chain: deterministic
-    </span>
   );
 }
 
