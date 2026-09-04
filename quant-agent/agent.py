@@ -26,7 +26,7 @@ from config import get_settings
 import confidence
 
 # --- Thetanuts assets (execution/src/tradeResolver.ts:15 SUPPORTED_ASSETS) ---
-WATCHLIST = ["BTC","ETH","SOL","AVAX","XRP","BNB","DOGE"]
+WATCHLIST = ["BTC","ETH","SOL","AVAX","XRP","BNB","DOGE","PAXG"]
 
 def _is_market_hours():
     # Crypto 24/7, but keep ET check for demo loop compatibility
@@ -36,12 +36,12 @@ def fetch_bars_thetanuts(symbol: str):
     """Synthetic bars for Thetanuts underlying — SMA200 needs 200, S001 fires for demo cohort; live spot fetched from execution API when available"""
     s=get_settings()
     # Try live spot from execution API to anchor fixture, else fallback
-    base_map={"BTC":79000,"ETH":2450,"SOL":101,"AVAX":7.3,"XRP":1.4,"BNB":715}
+    base_map={"BTC":79000,"ETH":2450,"SOL":101,"AVAX":7.3,"XRP":1.4,"BNB":715,"DOGE":0.15,"PAXG":2650}
     base=base_map.get(symbol, 150)
     closes=[]
     for i in range(250):
         closes.append(base * (1 + i*0.0006) + (i%7)*0.02)
-    if symbol in ("BTC","ETH","SOL","AVAX"):
+    if symbol in ("BTC","ETH","SOL","AVAX","XRP","BNB","DOGE","PAXG"):
         closes[-1]=max(closes[-56:-1]) + base*0.002
         closes[-2]=closes[-1]- base*0.001
     bars=[{"c": c, "close": c, "t": f"2026-09-{i%28+1:02d}"} for i,c in enumerate(closes)]
@@ -107,8 +107,8 @@ def build_mock_candidates(symbol, closes):
     otm_pct=3.0
     strike=round(spot * (1 - otm_pct/100), 2)
     # Vary liquidity to demo both auto and manual thresholds
-    spread_map={"BTC":3.5,"ETH":3.5,"SOL":4.0,"AVAX":11.5,"XRP":12.0,"BNB":4.2,"DOGE":3.2}
-    premium_map={"BTC":1.4,"ETH":1.4,"SOL":1.3,"AVAX":0.80,"XRP":0.75,"BNB":1.3,"DOGE":1.2}
+    spread_map={"BTC":3.5,"ETH":3.5,"SOL":4.0,"AVAX":11.5,"XRP":12.0,"BNB":4.2,"DOGE":3.2,"PAXG":5.5}
+    premium_map={"BTC":1.4,"ETH":1.4,"SOL":1.3,"AVAX":0.80,"XRP":0.75,"BNB":1.3,"DOGE":1.2,"PAXG":1.1}
     spread=spread_map.get(symbol, 4.5)
     premium=premium_map.get(symbol, 1.2)
     # Alternate put/call for variety: even hash -> put, odd -> call (screened same)

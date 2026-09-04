@@ -133,7 +133,7 @@
       "asset_name": "Paxos Gold",
       "role": "underlying",
       "category": "rwa_commodity",
-      "tradable_on_thetanuts": false,
+      "tradable_on_thetanuts": true,
       "shariah_status": "COMPLIANT_CONDITIONAL",
       "rationale": "Each token is fully backed by one fine troy ounce of allocated physical gold held in a Brink's vault, redeemable for physical delivery. No yield or coupon -- not a Riba concern. The open question is Riba al-Fadl / qabd (possession): gold and silver are classically 'ribawi' items where classical fiqh requires hand-to-hand spot exchange. Whether an on-chain, redeemable, audited allocated-gold claim satisfies constructive possession is a live debate among contemporary scholars (some boards, e.g. covering the older Gold-i/OneGram products, ruled allocated + redeemable structures acceptable; others require physical delivery). Treat as scholar-review-required, not auto-PASS, before writing an option against it.",
       "restrictions": ["requires_scholar_review_on_qabd", "spot_or_short_tenor_only_pending_review"]

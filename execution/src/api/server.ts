@@ -309,9 +309,9 @@ app.get(
       const md = await readClient.api.getMarketData();
       livePrices = (md as { prices: Record<string, number> }).prices ?? {};
     } catch {
-      livePrices = { BTC: 79000, ETH: 2450, SOL: 101, AVAX: 7.3, XRP: 1.4, BNB: 715 };
+      livePrices = { BTC: 79000, ETH: 2450, SOL: 101, AVAX: 7.3, XRP: 1.4, BNB: 715, DOGE: 0.15, PAXG: 2650 };
     }
-    const baseMap: Record<string, number> = { BTC: 79000, ETH: 2450, SOL: 101, AVAX: 7.3, XRP: 1.4, BNB: 715 };
+    const baseMap: Record<string, number> = { BTC: 79000, ETH: 2450, SOL: 101, AVAX: 7.3, XRP: 1.4, BNB: 715, DOGE: 0.15, PAXG: 2650 };
 
     const suggestions = [];
     for (const asset of assets) {
@@ -319,15 +319,15 @@ app.get(
       // Synthetic 250 closes, uptrend, force breakout for demo cohort
       const closes: number[] = [];
       for (let i = 0; i < 250; i++) closes.push(base * (1 + i * 0.0006) + (i % 7) * 0.02);
-      if (["BTC", "ETH", "SOL", "AVAX"].includes(asset)) {
+      if (SUPPORTED_ASSETS.includes(asset)) {
         closes[closes.length - 1] = Math.max(...closes.slice(-56, -1)) + base * 0.002;
         closes[closes.length - 2] = closes[closes.length - 1] - base * 0.001;
       }
       const ind = quantIndicators(closes);
       if (!ind || !ind.trendOk || !ind.breakoutOk) continue;
       // Liquidity variance to demo both auto and manual at higher threshold
-      const spreadMap: Record<string, number> = { BTC: 3.5, ETH: 3.5, SOL: 4.0, AVAX: 11.5, XRP: 12.0, BNB: 4.2, DOGE: 3.0 };
-      const premiumMap: Record<string, number> = { BTC: 1.4, ETH: 1.4, SOL: 1.3, AVAX: 0.8, XRP: 0.75, BNB: 1.3, DOGE: 1.2 };
+      const spreadMap: Record<string, number> = { BTC: 3.5, ETH: 3.5, SOL: 4.0, AVAX: 11.5, XRP: 12.0, BNB: 4.2, DOGE: 3.0, PAXG: 5.0 };
+      const premiumMap: Record<string, number> = { BTC: 1.4, ETH: 1.4, SOL: 1.3, AVAX: 0.8, XRP: 0.75, BNB: 1.3, DOGE: 1.2, PAXG: 1.1 };
       const spread = spreadMap[asset] ?? 4.5;
       const premium = premiumMap[asset] ?? 1.2;
       const strike = Math.round((ind.latestClose * 0.97) * 100) / 100;

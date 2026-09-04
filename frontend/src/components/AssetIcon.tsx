@@ -112,6 +112,18 @@ export default function AssetIcon({ asset, size = 20, className = "" }: Props) {
     );
   }
 
+  if (key === "PAXG") {
+    return (
+      <span
+        className={`inline-flex shrink-0 items-center justify-center rounded-full font-bold ${className}`}
+        style={{ ...style, background: "#d4a54a", color: "#1a1200", fontSize: size * 0.5 }}
+        aria-hidden
+      >
+        Au
+      </span>
+    );
+  }
+
   return (
     <span
       className={`inline-flex shrink-0 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface-2)] text-[var(--text-secondary)] font-semibold ${className}`}
