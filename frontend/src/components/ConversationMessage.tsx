@@ -39,14 +39,21 @@ export default function ConversationMessage({ message, onExecute }: Props) {
 
   const convo = message.converse;
 
+  // For clarification the same ai_explanation is already shown inside the
+  // Clarification card as a nicely formatted table — don't duplicate it as a
+  // raw bubble above. For ready/rejected we keep the top bubble plus the
+  // structured card.
+  const hideTopBubble = convo?.status === "clarification_needed";
+
   return (
     <div className="flex gap-3">
       <AssistantAvatar />
       <div className="flex-1 min-w-0 space-y-3 max-w-[820px]">
-        {/* Plain-language explanation always rendered first */}
-        <div className="text-[14px] leading-relaxed text-[var(--text-secondary)]">
-          {message.content}
-        </div>
+        {!hideTopBubble && (
+          <div className="text-[14px] leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap">
+            <MarkdownContent text={message.content} />
+          </div>
+        )}
 
         {convo?.status === "clarification_needed" && <Clarification convo={convo} />}
         {convo?.status === "rejected" && <Rejected convo={convo} />}
@@ -186,6 +193,80 @@ function BlockerList({ blockers }: { blockers: string[] }) {
   );
 }
 
+function renderInline(text: string) {
+  // **bold** → <strong>
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((p, i) => {
+    if (p.startsWith("**") && p.endsWith("**")) {
+      return <strong key={i} className="font-semibold text-[var(--text-primary)]">{p.slice(2, -2)}</strong>;
+    }
+    // `code` → mono
+    const codeParts = p.split(/(`[^`]+`)/g);
+    return codeParts.map((c, j) => {
+      if (c.startsWith("`") && c.endsWith("`")) {
+        return <code key={`${i}-${j}`} className="num rounded bg-[var(--bg-surface-2)] border border-[var(--border-subtle)] px-1 py-0.5 text-[12px]">{c.slice(1, -1)}</code>;
+      }
+      return <span key={`${i}-${j}`}>{c}</span>;
+    });
+  });
+}
+
+function MarkdownContent({ text }: { text: string }) {
+  const lines = text.split("\n");
+  const nodes: React.ReactNode[] = [];
+  let i = 0;
+  let tableKey = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    // Detect markdown table: | ... | followed by |---| line
+    if (line.trim().startsWith("|") && i + 1 < lines.length && /^\|\s*[-|:\s]+\|\s*$/.test(lines[i + 1])) {
+      const headerCells = line.split("|").map((c) => c.trim()).filter(Boolean);
+      i += 2; // skip header + separator
+      const rows: string[][] = [];
+      while (i < lines.length && lines[i].trim().startsWith("|")) {
+        const cells = lines[i].split("|").map((c) => c.trim()).filter(Boolean);
+        rows.push(cells);
+        i++;
+      }
+      nodes.push(
+        <div key={`tbl-${tableKey++}`} className="my-3 overflow-x-auto rounded-lg border border-[var(--border-subtle)]">
+          <table className="w-full text-left text-[12.5px]">
+            <thead>
+              <tr className="bg-[var(--bg-surface-2)] border-b border-[var(--border-subtle)]">
+                {headerCells.map((h, idx) => (
+                  <th key={idx} className="px-3 py-2 font-semibold text-[var(--text-secondary)] whitespace-nowrap">{renderInline(h)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rIdx) => (
+                <tr key={rIdx} className={rIdx % 2 === 0 ? "bg-[var(--bg-surface)]" : "bg-[var(--bg-app)]/40"}>
+                  {row.map((cell, cIdx) => (
+                    <td key={cIdx} className="px-3 py-2 text-[var(--text-primary)] whitespace-nowrap border-t border-[var(--border-faint)]">{renderInline(cell)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      continue;
+    }
+    if (line.trim() === "") {
+      i++;
+      continue;
+    }
+    // Normal paragraph
+    nodes.push(
+      <p key={`p-${i}`} className="text-[13.5px] leading-relaxed text-[var(--text-primary)] whitespace-pre-wrap">
+        {renderInline(line)}
+      </p>,
+    );
+    i++;
+  }
+  return <div className="space-y-2">{nodes}</div>;
+}
+
 /* -------------------------- CLARIFICATION -------------------------- */
 
 function Clarification({ convo }: { convo: ConverseResponse }) {
@@ -195,9 +276,7 @@ function Clarification({ convo }: { convo: ConverseResponse }) {
         <span className="label">Need More Information</span>
         <StatusBadge kind="warn" label="Clarification Needed" icon="!" />
       </div>
-      <p className="text-[13.5px] leading-relaxed text-[var(--text-primary)]">
-        {convo.ai_explanation}
-      </p>
+      <MarkdownContent text={convo.ai_explanation} />
     </div>
   );
 }

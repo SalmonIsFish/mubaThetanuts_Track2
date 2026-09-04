@@ -386,16 +386,13 @@ app.post(
         const spendNote = merged.spendUsdc != null ? ` for $${merged.spendUsdc}` : "";
         const wantsELI5 = /like.*5|5 years|eli5/i.test(prompt);
         if (/high risk|low risk|differentiate|why.*not compliant|why shouldn't/i.test(prompt) || wantsELI5) {
-          const lowList = ready.slice(0, 4).map((r) => `${r.asset} ${r.optionType} $${r.strike.toFixed(0)} (Δ ${(r as unknown as {delta:number|null}).delta?.toFixed(3) ?? "?"}) → READY 🟢 low risk = compliant`).join("; ");
-          const highList = blocked.slice(0, 4).map((r) => `${r.asset} ${r.optionType} $${r.strike.toFixed(0)} (Δ ${r.delta?.toFixed(3) ?? "?"}) → BLOCKED 🔴 high risk = not compliant — price too far, like lottery (Maysir), guard 4 blocked`).join("; ");
-          const eli5 =
-            `Think like you're 5: same chocolate (BTC) can have silly price tags. ` +
-            `Low risk = price close to today → likelihood 10-90% → guard says READY 🟢 = compliant. ` +
-            `High risk = price super far → likelihood ~5% → guard says BLOCKED 🔴 = not compliant (we block gambling). ` +
-            `So LOW risk IS compliant, HIGH risk is NOT compliant. ` +
-            `Live sample${spendNote}: LOW/COMPLIANT: ${lowList || "none in sample"} | HIGH/NOT COMPLIANT: ${highList || "none"} . ` +
-            `Tell me "Buy [asset] [put/call] with ${merged.spendUsdc ?? 3} dollars" and I'll show the 5 guards for that one ticket.`;
-          res.json({ status: "clarification_needed", actionable_data: null, ai_explanation: eli5, partial_intent: merged });
+          const intro = `Like you're 5: LOW risk = price close to today → likelihood 10–90% → guard says READY 🟢 = compliant. HIGH risk = price super far → ~5% chance → guard says BLOCKED 🔴 = not compliant (we block gambling/Maysir to protect you). So **LOW risk IS compliant, HIGH risk is NOT**.`;
+          const tableHead = `\n\nLive sample${spendNote} (${ready.length} READY / ${blocked.length} BLOCKED among 12):\n\n| Asset | Type | Strike | Δ | Status | Risk | Why (ELI5) |\n|---|---|---|---|---|---|---|\n`;
+          const readyRows = ready.slice(0, 4).map((r) => `| ${r.asset} | ${r.optionType} | $${r.strike.toFixed(0)} | ${(r as unknown as {delta:number|null}).delta?.toFixed(3) ?? "—"} | READY 🟢 | Low = Compliant | Price close — fair ticket |`).join("\n");
+          const blockedRows = blocked.slice(0, 4).map((r) => `| ${r.asset} | ${r.optionType} | $${r.strike.toFixed(0)} | ${r.delta?.toFixed(3) ?? "—"} | BLOCKED 🔴 | High = Not Compliant | Price too far → ~${((Math.abs(r.delta ?? 0))*100).toFixed(0)}% chance → lottery, guard 4 blocks |`).join("\n");
+          const table = tableHead + (readyRows ? readyRows + "\n" : "") + (blockedRows ? blockedRows + "\n" : "") + (ready.length===0 && blocked.length===0 ? `| — | — | — | — | — | — | no samples |\n` : "");
+          const footer = `\nTell me "Buy [asset] [put/call] with ${merged.spendUsdc ?? 3} dollars" and I'll show the 5 guards for that one ticket.`;
+          res.json({ status: "clarification_needed", actionable_data: null, ai_explanation: intro + table + footer, partial_intent: merged });
           return;
         }
         const list = ready.length
@@ -413,7 +410,7 @@ app.post(
       }
 
       // Standalone high/low risk ELI5 explain — even without "live market" keyword,
-      // the user asked to differentiate. Show READY=low risk=compliant vs BLOCKED=high risk=not compliant with 5-year-old "silly price" story.
+      // the user asked to differentiate. Show READY=low risk=compliant vs BLOCKED=high risk=not compliant with 5-year-old "silly price" story as a table.
       if (!merged.asset && /high risk|low risk|differentiate|why.*not compliant|why shouldn't|like.*5|eli5/i.test(prompt)) {
         const fetched = await findLiveOrders(readClient, { vanillaOnly: true });
         const sample = interleaveByAsset(fetched, readClient, 12);
@@ -438,15 +435,16 @@ app.post(
             return { asset: orderAsset, optionType: orderType, strike: Number(order.order.strikes![0]) / 1e8, decision: d.decision, delta: order.rawApiData?.greeks?.delta ?? null };
           }),
         );
-        const ready = (screened.filter(Boolean) as { asset: string; optionType: string; strike: number; decision: string }[]).filter((s) => s.decision === "READY_FOR_EXECUTION");
+        const ready = (screened.filter(Boolean) as { asset: string; optionType: string; strike: number; decision: string; delta: number | null }[]).filter((s) => s.decision === "READY_FOR_EXECUTION");
         const blocked = (screened.filter(Boolean) as { asset: string; optionType: string; strike: number; decision: string; delta: number | null }[]).filter((s) => s.decision === "BLOCKED");
         const spendNote = merged.spendUsdc != null ? ` for $${merged.spendUsdc}` : "";
-        const lowList = ready.slice(0, 4).map((r) => `${r.asset} ${r.optionType} $${r.strike.toFixed(0)} → READY 🟢 low risk = compliant`).join("; ") || "none in sample";
-        const highList = blocked.slice(0, 4).map((r) => `${r.asset} ${r.optionType} $${r.strike.toFixed(0)} (Δ ${r.delta?.toFixed(3) ?? "?"}) → BLOCKED 🔴 high risk = not compliant — price too far, lottery (Maysir)`).join("; ") || "none";
-        const eli5 =
-          `Like you're 5: LOW risk = price close to today → likelihood 10-90% → guard says READY 🟢 = compliant, we can do it. HIGH risk = price super far → ~5% chance → guard says BLOCKED 🔴 = not compliant (we block gambling to protect you). So LOW risk IS compliant, HIGH risk is NOT. ` +
-          `Live sample${spendNote}: LOW/COMPLIANT: ${lowList} | HIGH/NOT COMPLIANT: ${highList}. Tell me "Buy [asset] [put/call] with ${merged.spendUsdc ?? 3} dollars" and I'll show the 5 guards for that one ticket.`;
-        res.json({ status: "clarification_needed", actionable_data: null, ai_explanation: eli5, partial_intent: merged });
+        const intro = `Like you're 5: LOW risk = price close to today → likelihood 10–90% → guard says READY 🟢 = compliant. HIGH risk = price super far → ~5% chance → guard says BLOCKED 🔴 = not compliant (we block gambling/Maysir to protect you). So **LOW risk IS compliant, HIGH risk is NOT**.`;
+        const tableHead = `\n\nLive sample${spendNote} (${ready.length} READY / ${blocked.length} BLOCKED among 12):\n\n| Asset | Type | Strike | Δ | Status | Risk | Why (ELI5) |\n|---|---|---|---|---|---|---|\n`;
+        const readyRows = ready.slice(0, 4).map((r) => `| ${r.asset} | ${r.optionType} | $${r.strike.toFixed(0)} | ${r.delta?.toFixed(3) ?? "—"} | READY 🟢 | Low = Compliant | Price close — fair ticket |`).join("\n");
+        const blockedRows = blocked.slice(0, 4).map((r) => `| ${r.asset} | ${r.optionType} | $${r.strike.toFixed(0)} | ${r.delta?.toFixed(3) ?? "—"} | BLOCKED 🔴 | High = Not Compliant | Price too far → ~${((Math.abs(r.delta ?? 0))*100).toFixed(0)}% chance → lottery, guard 4 blocks |`).join("\n");
+        const table = tableHead + (readyRows ? readyRows + "\n" : "") + (blockedRows ? blockedRows + "\n" : "") + (ready.length===0 && blocked.length===0 ? `| — | — | — | — | — | — | no samples |\n` : "");
+        const footer = `\nTell me "Buy [asset] [put/call] with ${merged.spendUsdc ?? 3} dollars" and I'll show the 5 guards for that one ticket.`;
+        res.json({ status: "clarification_needed", actionable_data: null, ai_explanation: intro + table + footer, partial_intent: merged });
         return;
       }
 
