@@ -42,11 +42,11 @@ export default function AppShell() {
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <SideRail view={view} onView={setView} />
 
-        <div className="grid flex-1 min-h-0 gap-3 p-3" style={{ gridTemplateColumns: "240px 1fr 320px" }}>
-          {/* Left — Live Market compact */}
-          <aside className="flex flex-col overflow-y-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2.5" style={{ scrollbarWidth: "none" } as React.CSSProperties}>
+        <div className="grid flex-1 min-h-0 gap-2 p-2" style={{ gridTemplateColumns: "280px 1fr 340px" }}>
+          {/* Left — Live Market + Quant — compact for 1080p single-screen */}
+          <aside className="flex flex-col overflow-y-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2" style={{ scrollbarWidth: "none" } as React.CSSProperties}>
             <MarketPrices />
-            <div className="mt-3">
+            <div className="mt-2">
               <QuantPanel />
             </div>
           </aside>
