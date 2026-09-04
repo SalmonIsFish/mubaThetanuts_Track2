@@ -98,8 +98,8 @@ export default function CopilotWorkspace() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Sticky context header */}
-      <CopilotHeader />
+      {/* Terminal product band */}
+      <WorkspaceBand />
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-5 py-6">
@@ -120,7 +120,7 @@ export default function CopilotWorkspace() {
           {error && (
             <div className="mt-4 rounded-lg border border-[var(--reject-border)] bg-[var(--reject-bg)]/40 px-4 py-3">
               <div className="flex items-center gap-2">
-                <StatusGlyph />
+                <span aria-hidden className="text-[var(--reject)]">✕</span>
                 <span className="text-[13px] text-[var(--reject)] font-medium">
                   API connection error
                 </span>
@@ -153,7 +153,7 @@ export default function CopilotWorkspace() {
               aria-label="Send"
             >
               <SendIcon />
-              Send
+              Evaluate
             </button>
           </div>
           <p className="mt-1.5 text-[11px] text-[var(--text-faint)]">
@@ -166,56 +166,88 @@ export default function CopilotWorkspace() {
   );
 }
 
-/* ------------------------------ Header ------------------------------ */
-function CopilotHeader() {
+/* --------------------------- Workspace band ------------------------ */
+function WorkspaceBand() {
   return (
-    <div className="shrink-0 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/80 px-5 py-3">
-      <div className="mx-auto max-w-3xl flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="h-2 w-2 rounded-full bg-[var(--pass)] shadow-[0_0_6px_rgba(52,211,153,0.7)]" />
-          <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-            AI Copilot
-          </span>
-        </div>
-        <StatusGlyph />
+    <div className="band flex shrink-0 items-center justify-between px-5 py-2.5">
+      <div className="flex items-center gap-2.5">
+        <span className="label">AI Copilot</span>
+        <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+          <span aria-hidden>·</span> Initiate &amp; evaluate a trade
+        </span>
       </div>
+      <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+        <span className="lamp lamp-pass" aria-hidden />
+        Deterministic gate chain
+      </span>
     </div>
-  );
-}
-
-function StatusGlyph() {
-  return (
-    <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
-      <span className="h-1.5 w-1.5 rounded-full bg-[var(--pass)]" />
-      Gate chain: deterministic
-    </span>
   );
 }
 
 /* --------------------------- Empty state --------------------------- */
 function EmptyState({ onPick }: { onPick: (s: string) => void }) {
   return (
-    <div className="py-14 text-center">
-      <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-[var(--accent-dim)] bg-[var(--accent-ink)] text-[var(--accent-strong)] text-2xl">
-        ⚖
+    <div className="ops-panel">
+      {/* System context strip */}
+      <div className="ops-head flex flex-wrap items-center gap-x-5 gap-y-1 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="label">SHARIAH RISK COPILOT</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <Sys ctx="Market" val="LIVE" />
+          <Sys ctx="Risk Engine" val="DETERMINISTIC" />
+          <Sys ctx="Gate Chain" val="FAIL-CLOSED" />
+        </div>
       </div>
-      <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-        Thetanuts Shariah Risk Copilot
-      </h2>
-      <p className="mx-auto mt-2 max-w-md text-[13.5px] leading-relaxed text-[var(--text-muted)]">
-        Propose a Thetanuts options trade in plain language. It&apos;s resolved
-        against live orders, run through the Shariah &amp; risk gate chain, and
-        explained — before anything is executed.
-      </p>
 
-      <div className="mx-auto mt-8 grid max-w-xl grid-cols-1 gap-2 sm:grid-cols-2">
-        {SUGGESTIONS.map((s) => (
-          <button key={s} onClick={() => onPick(s)} className="chip">
-            {s}
-          </button>
-        ))}
+      <div className="px-5 py-6">
+        <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">
+          What would you like to trade?
+        </h2>
+        <p className="mt-1.5 max-w-lg text-[13px] leading-relaxed text-[var(--text-muted)]">
+          Describe the option you want. The copilot resolves it against live
+          orders, runs the deterministic Shariah &amp; risk gate chain, and
+          explains the result — nothing is executed until you confirm.
+        </p>
+
+        <div className="mt-5 grid max-w-3xl grid-cols-1 gap-2 sm:grid-cols-2">
+          {SUGGESTIONS.map((s) => (
+            <button key={s} onClick={() => onPick(s)} className="chip">
+              {s}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-6 ops-grid">
+          <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
+            <span className="text-[var(--accent-strong)]" aria-hidden>✓</span>
+            Underlying screen
+          </div>
+          <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
+            <span className="text-[var(--accent-strong)]" aria-hidden>✓</span>
+            Collateral &amp; structure
+          </div>
+          <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
+            <span className="text-[var(--accent-strong)]" aria-hidden>✓</span>
+            Delta band
+          </div>
+          <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
+            <span className="text-[var(--accent-strong)]" aria-hidden>✓</span>
+            Risk / notional caps
+          </div>
+        </div>
       </div>
     </div>
+  );
+}
+
+function Sys({ ctx, val }: { ctx: string; val: string }) {
+  return (
+    <span className="sys-ind">
+      <span className="lamp lamp-pass" aria-hidden />
+      <span>{ctx}</span>
+      <span className="val num">{val}</span>
+    </span>
   );
 }
 

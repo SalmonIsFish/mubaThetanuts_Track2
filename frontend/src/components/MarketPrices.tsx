@@ -34,10 +34,10 @@ export default function MarketPrices() {
     <section className="surface p-3.5">
       <header className="flex items-center justify-between mb-2.5">
         <h3 className="label">Live Market</h3>
-        <span
-          className={`h-1.5 w-1.5 rounded-full ${error ? "bg-[var(--reject)]" : "bg-[var(--pass)]"}`}
-          title={error ?? "Live"}
-        />
+        <span className="sys-ind" title={error ?? "Live"}>
+          <span className={`lamp ${error ? "lamp-reject" : "lamp-pass"}`} aria-hidden />
+          <span className="val">{error ? "OFFLINE" : "LIVE"}</span>
+        </span>
       </header>
 
       {error && (

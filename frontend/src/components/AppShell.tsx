@@ -8,104 +8,42 @@ type View = "copilot";
 
 export default function AppShell() {
   const [view, setView] = useState<View>("copilot");
+  const system = useSystemStatus();
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden">
-      {/* Left nav rail */}
-      <SideRail view={view} onView={setView} />
+    <div className="flex h-screen w-screen flex-col overflow-hidden">
+      {/* Top institutional status bar */}
+      <TopBar system={system} />
 
-      {/* Main workspace */}
-      <main className="flex-1 min-w-0 overflow-hidden">
-        <CopilotWorkspace />
-      </main>
+      <div className="flex flex-1 min-h-0">
+        {/* Left nav rail */}
+        <SideRail view={view} onView={setView} connected={system.api} />
 
-      {/* Right Desk panel */}
-      <DeskPanel />
+        {/* Main workspace */}
+        <main className="flex-1 min-w-0 overflow-hidden">
+          <CopilotWorkspace />
+        </main>
+
+        {/* Right Desk panel */}
+        <DeskPanel />
+      </div>
     </div>
   );
 }
 
-/* ------------------------------ Rail ------------------------------- */
-function SideRail({ view, onView }: { view: View; onView: (v: View) => void }) {
-  const connected = useHealth();
-  return (
-    <nav className="flex w-14 shrink-0 flex-col items-center border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] py-3">
-      {/* Brand */}
-      <div className="mb-6 flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--accent-dim)] bg-[var(--accent-ink)] text-[var(--accent-strong)] text-lg">
-        ⚖
-      </div>
+/* --------------------------- System status -------------------------- */
+type SystemStatus = { api: "online" | "offline" | "checking" };
 
-      <RailButton
-        active={view === "copilot"}
-        onClick={() => onView("copilot")}
-        label="Copilot"
-        icon="💬"
-      />
-
-      <div className="mt-auto">
-        <div className="flex flex-col items-center gap-2">
-          <div
-            className="flex items-center gap-1.5 text-[10px] text-[var(--text-faint)]"
-            title={connected ? "Connected to API" : "API unreachable"}
-          >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                connected === false
-                  ? "bg-[var(--reject)]"
-                  : connected
-                    ? "bg-[var(--pass)]"
-                    : "bg-[var(--warn)]"
-              }`}
-            />
-          </div>
-        </div>
-      </div>
-    </nav>
-  );
-}
-
-function RailButton({
-  active,
-  onClick,
-  label,
-  icon,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  icon: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`group relative flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-[10px] transition-colors ${
-        active
-          ? "text-[var(--accent-strong)]"
-          : "text-[var(--text-faint)] hover:text-[var(--text-secondary)]"
-      }`}
-      title={label}
-      aria-label={label}
-      aria-current={active ? "page" : undefined}
-    >
-      {active && (
-        <span className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-full bg-[var(--accent)]" />
-      )}
-      <span className="text-[15px] leading-none">{icon}</span>
-      <span className="text-[9.5px] font-medium">{label}</span>
-    </button>
-  );
-}
-
-function useHealth() {
-  const [connected, setConnected] = useState<boolean | null>(null);
+function useSystemStatus(): SystemStatus {
+  const [api, setApi] = useState<SystemStatus["api"]>("checking");
   useEffect(() => {
     let active = true;
     async function check() {
       try {
         await healthCheck();
-        if (active) setConnected(true);
+        if (active) setApi("online");
       } catch {
-        if (active) setConnected(false);
+        if (active) setApi("offline");
       }
     }
     check();
@@ -115,7 +53,127 @@ function useHealth() {
       window.clearInterval(id);
     };
   }, []);
-  return connected;
+  return { api };
+}
+
+/* ------------------------------ Top bar ----------------------------- */
+function TopBar({ system }: { system: SystemStatus }) {
+  return (
+    <header className="band flex h-11 shrink-0 items-center justify-between gap-4 px-3 sm:px-4">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-[var(--accent-dim)] bg-[var(--accent-ink)] text-[var(--accent-strong)] text-[15px]">
+          ⚖
+        </div>
+        <div className="min-w-0">
+          <div className="truncate text-[12.5px] font-bold tracking-wide text-[var(--text-primary)]">
+            THETANUTS · SHARIAH RISK COPILOT
+          </div>
+          <div className="truncate text-[10px] tracking-[0.08em] text-[var(--text-muted)] uppercase">
+            Base · Options Desk
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4 sm:gap-5 overflow-x-auto">
+        <SysInd lamp="pass" label="Market" value="LIVE" />
+        <SysInd lamp="pass" label="Risk Engine" value="DETERMINISTIC" />
+        <SysInd lamp="pass" label="Gate Chain" value="FAIL-CLOSED" />
+        <SysInd
+          lamp={system.api === "online" ? "pass" : system.api === "offline" ? "reject" : "warn"}
+          label="API"
+          value={system.api === "online" ? "ONLINE" : system.api === "offline" ? "OFFLINE" : "CHECKING"}
+        />
+      </div>
+    </header>
+  );
+}
+
+function SysInd({
+  lamp,
+  label,
+  value,
+}: {
+  lamp: "pass" | "reject" | "warn" | "info" | "dim";
+  label: string;
+  value: string;
+}) {
+  return (
+    <span className="sys-ind" title={`${label}: ${value}`}>
+      <span className={`lamp lamp-${lamp}`} aria-hidden />
+      <span>{label}</span>
+      <span className="val num">{value}</span>
+    </span>
+  );
+}
+
+/* ------------------------------ Rail ------------------------------- */
+function SideRail({
+  view,
+  onView,
+  connected,
+}: {
+  view: View;
+  onView: (v: View) => void;
+  connected: SystemStatus["api"];
+}) {
+  return (
+    <nav
+      className="flex w-12 shrink-0 flex-col items-center gap-2 border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] py-3"
+      aria-label="Primary"
+    >
+      <RailIconButton
+        active={view === "copilot"}
+        onClick={() => onView("copilot")}
+        label="Copilot"
+        title="AI Copilot"
+        glyph="⌁"
+      />
+      <RailIconButton label="Propose" title="Propose a trade" glyph="▣" />
+      <RailIconButton label="Orders" title="Screened orders" glyph="☰" />
+      <RailIconButton label="Market" title="Live market" glyph="◎" />
+
+      <div className="mt-auto flex flex-col items-center gap-2">
+        <div className="flex items-center gap-1.5" title={connected === "offline" ? "API unreachable" : "API connected"}>
+          <span
+            className={`lamp ${
+              connected === "offline"
+                ? "lamp-reject"
+                : connected === "online"
+                  ? "lamp-pass"
+                  : "lamp-warn"
+            }`}
+            aria-hidden
+          />
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+function RailIconButton({
+  active,
+  onClick,
+  label,
+  title,
+  glyph,
+}: {
+  active?: boolean;
+  onClick?: () => void;
+  label: string;
+  title: string;
+  glyph: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`nav-icon ${active ? "nav-icon-active" : ""}`}
+      title={title}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+    >
+      <span className="text-[15px] leading-none">{glyph}</span>
+    </button>
+  );
 }
 
 /* ---------------------------- Desk panel --------------------------- */
@@ -126,6 +184,7 @@ function DeskPanel() {
     <>
       {/* Desktop fixed desk */}
       <aside className="hidden w-[340px] shrink-0 flex-col overflow-y-auto border-l border-[var(--border-subtle)] bg-[var(--bg-surface)] lg:flex">
+        <DeskHeader />
         <DeskContent />
       </aside>
 
@@ -164,16 +223,29 @@ function DeskPanel() {
   );
 }
 
+function DeskHeader() {
+  return (
+    <div className="band flex shrink-0 items-center justify-between px-3 py-2.5">
+      <span className="label">Desk</span>
+      <span className="sys-ind">
+        <span className="lamp lamp-pass" aria-hidden />
+        <span className="val">LIVE</span>
+      </span>
+    </div>
+  );
+}
+
 function DeskContent() {
   return (
     <div className="space-y-3 p-3">
       <MarketPrices />
       <OrdersPanel />
       <div className="rounded-lg border border-[var(--border-faint)] bg-[var(--bg-surface-2)] p-3">
-        <div className="label mb-1.5">Desk</div>
+        <div className="label mb-1.5">Deterministic Controls</div>
         <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
           Live context for the copilot. Prices refresh every 15s, orders every
           20s. The gate chain decides compliance — this panel only surfaces it.
+          No LLM approves a trade.
         </p>
       </div>
     </div>

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import type { ConverseResponse, ProposeResponse, ExecuteResponse } from "../types";
-import StatusBadge from "./StatusBadge";
 import TradeProposalCard from "./TradeProposalCard";
 import GateChecklist from "./GateChecklist";
 import ConfirmationPanel from "./ConfirmationPanel";
@@ -23,43 +22,62 @@ interface Props {
 }
 
 /**
- * Renders one assistant turn as structured UI cards(never raw JSON).
- * Distinguishes ready / rejected / clarification_needed.
+ * Renders one turn in the copilot workspace.
+ * - user intent renders as a compact labeled row (not a chat bubble)
+ * - assistant renders the structured verdict as the hero, with the plain
+ *   language explanation as a distinct "AI Assessment" prose block below it
  */
 export default function ConversationMessage({ message, onExecute }: Props) {
   if (message.role === "user") {
     return (
-      <div className="flex justify-end">
-        <div className="max-w-[82%] rounded-xl rounded-tr-sm border border-[var(--border-subtle)] bg-[var(--bg-surface-2)] px-4 py-2.5 text-[13.5px] leading-relaxed text-[var(--text-primary)]">
+      <div className="max-w-[560px] intent-row">
+        <span className="tag">Intent</span>
+        <span className="text-[13.5px] leading-relaxed text-[var(--text-primary)]">
           {message.content}
-        </div>
+        </span>
       </div>
     );
   }
 
   const convo = message.converse;
+  const verdict =
+    convo?.status === "ready" ? (
+      <Ready
+        convo={convo}
+        onExecute={onExecute}
+        executed={message.executeResult != null}
+      />
+    ) : convo?.status === "rejected" ? (
+      <Rejected convo={convo} />
+    ) : convo?.status === "clarification_needed" ? (
+      <Clarification convo={convo} />
+    ) : null;
 
   return (
-    <div className="flex gap-3">
-      <AssistantAvatar />
-      <div className="flex-1 min-w-0 space-y-3 max-w-[820px]">
-        {/* Plain-language explanation always rendered first */}
-        <div className="text-[14px] leading-relaxed text-[var(--text-secondary)]">
-          {message.content}
+    <div className="space-y-3">
+      {/* Structured verdict is the hero output */}
+      {verdict && <div>{verdict}</div>}
+
+      {/* AI assessment — plain-language note shown only when a verdict exists */}
+      {message.content && verdict && (
+        <div className="ai-prose pt-1">
+          <div className="label mb-1">AI Assessment</div>
+          <p className="text-[13.5px] leading-relaxed text-[var(--text-secondary)]">
+            {message.content}
+          </p>
         </div>
+      )}
 
-        {convo?.status === "clarification_needed" && <Clarification convo={convo} />}
-        {convo?.status === "rejected" && <Rejected convo={convo} />}
-        {convo?.status === "ready" && (
-          <Ready
-            convo={convo}
-            onExecute={onExecute}
-            executed={message.executeResult != null}
-          />
-        )}
+      {!verdict && message.content && (
+        <div className="ai-prose">
+          <div className="label mb-1">Copilot</div>
+          <p className="text-[13.5px] leading-relaxed text-[var(--text-secondary)]">
+            {message.content}
+          </p>
+        </div>
+      )}
 
-        {message.executeResult && <ExecutionReceipt result={message.executeResult} />}
-      </div>
+      {message.executeResult && <ExecutionReceipt result={message.executeResult} />}
     </div>
   );
 }
@@ -93,37 +111,44 @@ function Ready({
     }
   }
 
+  const passed = gatePassCount(currentProposal.gate_summary);
+
   return (
-    <div className="verdict-card verdict-ready space-y-3 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <span className="label">Approved Proposal</span>
-        <StatusBadge kind="pass" label="Ready for Execution" icon="✓" />
+    <div className="verdict-card verdict-ready overflow-hidden">
+      <div className="verdict-title">
+        <span aria-hidden className="text-[15px]">✓</span>
+        <span className="main">Ready for Execution</span>
+        <span className="ml-auto num text-[12px] text-[var(--text-muted)]">
+          {passed} / {totalGates(currentProposal.gate_summary)} gates passed
+        </span>
       </div>
 
-      <TradeProposalCard data={proposal} />
-      <GateChecklist
-        gateSummary={proposal.gate_summary}
-        blockers={proposal.blockers}
-        decision={proposal.decision}
-      />
-
-      {!executed && !confirming && (
-        <div className="pt-1">
-          <button onClick={() => setConfirming(true)} className="btn btn-primary w-full sm:w-auto">
-            Review &amp; Confirm
-          </button>
-        </div>
-      )}
-
-      {confirming && !executed && (
-        <ConfirmationPanel
-          data={proposal}
-          intent={intent}
-          onConfirm={run}
-          onCancel={() => setConfirming(false)}
-          executing={executing}
+      <div className="p-4 space-y-3">
+        <TradeProposalCard data={proposal} />
+        <GateChecklist
+          gateSummary={proposal.gate_summary}
+          blockers={proposal.blockers}
+          decision={proposal.decision}
         />
-      )}
+
+        {!executed && !confirming && (
+          <div className="pt-1">
+            <button onClick={() => setConfirming(true)} className="btn btn-primary w-full sm:w-auto">
+              Review &amp; Confirm
+            </button>
+          </div>
+        )}
+
+        {confirming && !executed && (
+          <ConfirmationPanel
+            data={proposal}
+            intent={intent}
+            onConfirm={run}
+            onCancel={() => setConfirming(false)}
+            executing={executing}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -133,33 +158,47 @@ function Ready({
 function Rejected({ convo }: { convo: ConverseResponse }) {
   const proposal = convo.actionable_data;
   const blockers = proposal?.blockers ?? [];
+  const passed = proposal?.gate_summary ? gatePassCount(proposal.gate_summary) : 0;
+  const total = proposal?.gate_summary ? totalGates(proposal.gate_summary) : 0;
 
   return (
-    <div className="verdict-card verdict-rejected space-y-3 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <span className="label">Blocked by Gate Chain</span>
-        <StatusBadge kind="reject" label="Rejected" icon="✕" />
+    <div className="verdict-card verdict-rejected overflow-hidden">
+      <div className="verdict-title">
+        <span aria-hidden className="text-[15px]">✕</span>
+        <span className="main">Blocked / Rejected</span>
+        <span className="ml-auto num text-[12px] text-[var(--text-muted)]">
+          {passed} / {total} gates passed
+        </span>
       </div>
 
-      <p className="text-[13.5px] leading-relaxed text-[var(--text-secondary)]">
-        This trade cannot proceed. One or more Shariah / risk gates did not pass.
-      </p>
-
-      {proposal?.gate_summary && (
-        <GateChecklist
-          gateSummary={proposal.gate_summary}
-          blockers={blockers}
-          decision={proposal.decision}
-        />
-      )}
-
-      {blockers.length > 0 && <BlockerList blockers={blockers} />}
-
-      {!proposal?.gate_summary && blockers.length === 0 && (
-        <p className="text-xs text-[var(--text-muted)]">
-          No further gate details were returned by the backend.
+      <div className="p-4 space-y-3">
+        <p className="text-[13.5px] leading-relaxed text-[var(--text-secondary)]">
+          This trade cannot proceed. One or more Shariah / risk gates did not
+          pass. Execution is disabled.
         </p>
-      )}
+
+        {proposal?.gate_summary && (
+          <GateChecklist
+            gateSummary={proposal.gate_summary}
+            blockers={blockers}
+            decision={proposal.decision}
+          />
+        )}
+
+        {blockers.length > 0 && <BlockerList blockers={blockers} />}
+
+        {!proposal?.gate_summary && blockers.length === 0 && (
+          <p className="text-xs text-[var(--text-muted)]">
+            No further gate details were returned by the backend.
+          </p>
+        )}
+
+        <div className="pt-1">
+          <button disabled className="btn w-full sm:w-auto opacity-60">
+            ✕ Execution Disabled
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -185,24 +224,28 @@ function BlockerList({ blockers }: { blockers: string[] }) {
 
 function Clarification({ convo }: { convo: ConverseResponse }) {
   return (
-    <div className="verdict-card verdict-clarify space-y-3 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <span className="label">Need More Information</span>
-        <StatusBadge kind="warn" label="Clarification Needed" icon="!" />
+    <div className="verdict-card verdict-clarify overflow-hidden">
+      <div className="verdict-title">
+        <span aria-hidden className="text-[15px]">!</span>
+        <span className="main">Clarification Needed</span>
       </div>
-      <p className="text-[13.5px] leading-relaxed text-[var(--text-primary)]">
-        {convo.ai_explanation}
-      </p>
+      <div className="p-4 space-y-2">
+        <p className="text-[13.5px] leading-relaxed text-[var(--text-primary)]">
+          {convo.ai_explanation}
+        </p>
+      </div>
     </div>
   );
 }
 
-/* ------------------------------ AVATAR ----------------------------- */
+/* ------------------------------- utils ----------------------------- */
 
-function AssistantAvatar() {
-  return (
-    <div className="mt-0.5 h-7 w-7 shrink-0 rounded-md border border-[var(--accent-dim)] bg-[var(--accent-ink)] text-[var(--accent-strong)] flex items-center justify-center text-[13px] font-semibold">
-      ⚖
-    </div>
-  );
+function gatePassCount(gateSummary: Record<string, unknown>): number {
+  return Object.values(gateSummary).filter(
+    (v) => (v as { status?: string } | undefined)?.status === "PASS",
+  ).length;
+}
+
+function totalGates(gateSummary: Record<string, unknown>): number {
+  return Object.keys(gateSummary).length;
 }

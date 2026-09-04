@@ -96,23 +96,29 @@ function OrderRow({ order }: { order: OrderEntry }) {
   const isCall = Boolean(order.rawApiData?.isCall);
   const strikeRaw = readStrike(order);
   const delta = order.rawApiData?.greeks?.delta;
+  const expiry = readExpiry(order);
 
   return (
-    <div className="row flex items-center justify-between py-2 text-[12px]">
-      <div className="flex items-center gap-2">
-        <span
-          className={`inline-flex h-5 min-w-[40px] items-center justify-center rounded px-1.5 text-[10.5px] font-semibold uppercase ${
-            isCall
-              ? "bg-[var(--info-bg)] text-[var(--info)] border border-[var(--info-border)]"
-              : "bg-[var(--warn-bg)] text-[var(--warn)] border border-[var(--warn-border)]"
-          }`}
-        >
-          {isCall ? "Call" : "Put"}
-        </span>
-        <span className="num text-[var(--text-secondary)]">
+    <div className="row grid grid-cols-[auto_1fr_auto] items-center gap-2 py-2 text-[12px]">
+      <span
+        className={`inline-flex h-5 min-w-[40px] items-center justify-center rounded px-1.5 text-[10.5px] font-semibold uppercase ${
+          isCall
+            ? "bg-[var(--info-bg)] text-[var(--info)] border border-[var(--info-border)]"
+            : "bg-[var(--warn-bg)] text-[var(--warn)] border border-[var(--warn-border)]"
+        }`}
+      >
+        {isCall ? "Call" : "Put"}
+      </span>
+
+      <div className="min-w-0">
+        <div className="num truncate text-[var(--text-primary)]">
           {strikeRaw != null ? `$${formatStrike(strikeRaw)}` : "—"}
-        </span>
+        </div>
+        {expiry && (
+          <div className="num text-[10.5px] text-[var(--text-muted)]">{expiry}</div>
+        )}
       </div>
+
       <span className="num text-[11px] text-[var(--text-muted)]">
         {delta != null ? `Δ ${delta.toFixed(3)}` : ""}
       </span>
@@ -131,4 +137,14 @@ function readStrike(order: OrderEntry): number | null {
 
 function formatStrike(n: number): string {
   return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
+function readExpiry(order: OrderEntry): string | null {
+  const raw = (order.order?.expiry as unknown) as string | number | bigint | undefined;
+  if (raw == null) return null;
+  const secs = typeof raw === "bigint" ? Number(raw) : typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(secs) || secs <= 0) return null;
+  const d = new Date(secs * 1000);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
 }

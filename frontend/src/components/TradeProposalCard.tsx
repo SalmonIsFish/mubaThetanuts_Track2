@@ -1,6 +1,6 @@
 import type { ProposeResponse } from "../types";
 import { assertGrecks } from "../lib/primitives";
-import { fmtUsd, fmtNum } from "../lib/format";
+import { fmtUsd, fmtNum, assetIcon } from "../lib/format";
 
 interface Props {
   data: ProposeResponse;
@@ -17,13 +17,37 @@ export default function TradeProposalCard({ data }: Props) {
     ? Number(preview.pricePerContract) / 1_000_000
     : undefined;
 
-  return (
-    <div className="surface p-4">
-      <div className="label mb-3">Resolved Trade</div>
+  const asset = readAsset(data);
+  const structure = readStructure(data);
+  const strike = readStrike(data);
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4">
+  return (
+    <div className="surface overflow-hidden">
+      {/* Trade identity header */}
+      <div className="flex items-center gap-3 border-b border-[var(--border-faint)] px-4 py-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-[var(--border-subtle)] bg-[var(--bg-surface-2)] text-[16px] text-[var(--accent-strong)]">
+          {assetIcon(asset)}
+        </div>
+        <div className="min-w-0">
+          <div className="text-[14px] font-bold tracking-wide text-[var(--text-primary)]">
+            {asset} <span className="text-[var(--text-secondary)]">{structure || "OPTION"}</span>
+          </div>
+          <div className="num text-[12px] text-[var(--text-muted)]">
+            {strike != null ? `$${fmtNum(strike, 2)} strike` : "Resolved against live order"}
+          </div>
+        </div>
+        <span className="ml-auto text-right">
+          <div className="num text-[15px] font-semibold text-[var(--text-primary)]">
+            {fmtNum(data.numContractsHuman, 0)}
+          </div>
+          <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+            contracts
+          </div>
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4 p-4">
         <Stat label="Spot Price" value={fmtUsd(data.spotPrice)} />
-        <Stat label="Contracts" value={fmtNum(data.numContractsHuman, 6)} />
         <Stat
           label="Total Collateral"
           value={totalCollateralUsd > 0 ? fmtUsd(totalCollateralUsd) : "—"}
@@ -43,6 +67,30 @@ export default function TradeProposalCard({ data }: Props) {
       </div>
     </div>
   );
+}
+
+/** Asset symbol from the gate summary's underlying screen (real field). */
+function readAsset(data: ProposeResponse): string {
+  const gs = data.gate_summary;
+  const underlying = (gs.underlying_screen as { symbol?: string } | undefined)?.symbol;
+  return underlying?.toUpperCase() || "—";
+}
+
+/** Option structure (CALL/PUT) from the gate summary (real field). */
+function readStructure(data: ProposeResponse): string {
+  const gs = data.gate_summary;
+  const structure = (gs.option_structure_gate as { structure?: string } | undefined)?.structure;
+  return structure ? String(structure).toUpperCase() : "";
+}
+
+/** Strike from the resolved candidate order (real field). */
+function readStrike(data: ProposeResponse): number | null {
+  const strikes = (data.candidateOrder?.order?.strikes as unknown) as Array<string | number> | undefined;
+  if (!Array.isArray(strikes) || strikes.length === 0) return null;
+  const first = strikes[0];
+  const n = typeof first === "number" ? first : Number(first);
+  if (!Number.isFinite(n)) return null;
+  return n / 1e8;
 }
 
 function Stat({
