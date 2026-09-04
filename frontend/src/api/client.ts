@@ -9,13 +9,11 @@ import type {
   TradeIntent,
 } from "../types";
 
-// Respects Vite's `base` so the same build works at domain root (BASE_URL="/")
-// and under a subpath like /thetanuts/ (BASE_URL="/thetanuts/"). In both
-// cases `${BASE_URL}api` resolves to the correct nginx location. Override
-// with VITE_API_BASE at build time if the API lives elsewhere.
-const _rawBase =
-  (import.meta.env.VITE_API_BASE as string | undefined) ?? `${import.meta.env.BASE_URL}api`;
-const BASE = _rawBase.replace(/\/$/, "") || "/api";
+// Runtime fetch base is not rewritten by Vite's `base` (that only affects
+// asset URLs in built HTML), so it needs its own env var. Local dev keeps
+// "/api" (proxied to 127.0.0.1:8790 in vite.config.ts); production build
+// sets VITE_API_BASE=/thetanuts/api for the nginx subpath.
+const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "/api";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
