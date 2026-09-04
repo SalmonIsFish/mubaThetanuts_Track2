@@ -29,7 +29,7 @@
 import type { OrderWithSignature, ThetanutsClient } from "@thetanuts-finance/thetanuts-client";
 import type { GateTradeRequest } from "./gateClient.js";
 
-export type SupportedAsset = "BTC" | "ETH" | "SOL" | "AVAX" | "XRP" | "BNB";
+export type SupportedAsset = "BTC" | "ETH" | "SOL" | "AVAX" | "XRP" | "BNB" | "DOGE";
 export type OptionType = "put" | "call";
 
 // Every entry here needs both (a) a live priceFeed in the SDK's chainConfig
@@ -37,7 +37,7 @@ export type OptionType = "put" | "call";
 // -- underlying_screen.py fail-closes on the latter regardless of whether
 // live orders exist, so listing an asset here that isn't in that dataset
 // yet just means every trade on it gets rejected with symbol_not_in_universe.
-export const SUPPORTED_ASSETS: SupportedAsset[] = ["BTC", "ETH", "SOL", "AVAX", "XRP", "BNB"];
+export const SUPPORTED_ASSETS: SupportedAsset[] = ["BTC", "ETH", "SOL", "AVAX", "XRP", "BNB", "DOGE"];
 
 function buildPriceFeedToAssetMap(client: ThetanutsClient): Map<string, SupportedAsset> {
   const map = new Map<string, SupportedAsset>();

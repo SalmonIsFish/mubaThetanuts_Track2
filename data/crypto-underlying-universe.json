@@ -65,6 +65,15 @@
       "rationale": "Native gas/utility token of BNB Chain. No embedded yield or coupon; periodic supply burns are deflationary, not an interest mechanism, so they raise no Riba concern by themselves. Note (governance/regulatory, not fiqh): BNB is closely tied to a single centralized issuer (Binance), which has faced its own regulatory actions including from the SEC -- a concentration/counterparty consideration worth surfacing to a reviewer, separate from this screen's Riba/Gharar/Maysir scope."
     },
     {
+      "symbol": "DOGE",
+      "asset_name": "Dogecoin",
+      "role": "underlying",
+      "category": "crypto_native",
+      "tradable_on_thetanuts": true,
+      "shariah_status": "COMPLIANT",
+      "rationale": "Native asset of its own Proof-of-Work chain (Scrypt), originally a fork of Litecoin, used as peer-to-peer currency and for network fees. No embedded yield, coupon, or staking reward mechanism — Dogecoin has no native staking, so there is no derivative-yield carve-out needed. Note (volatility/utility, not fiqh): high volatility and meme-origin narrative carry market risk, but that is separate from this Riba/Gharar/Maysir screen."
+    },
+    {
       "symbol": "cbBTC",
       "asset_name": "Coinbase Wrapped BTC",
       "role": "underlying_or_collateral",

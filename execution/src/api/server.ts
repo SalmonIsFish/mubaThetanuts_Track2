@@ -301,8 +301,8 @@ app.get(
       const ind = quantIndicators(closes);
       if (!ind || !ind.trendOk || !ind.breakoutOk) continue;
       // Liquidity variance to demo both auto and manual at higher threshold
-      const spreadMap: Record<string, number> = { BTC: 3.5, ETH: 3.5, SOL: 4.0, AVAX: 11.5, XRP: 12.0, BNB: 4.2 };
-      const premiumMap: Record<string, number> = { BTC: 1.4, ETH: 1.4, SOL: 1.3, AVAX: 0.8, XRP: 0.75, BNB: 1.3 };
+      const spreadMap: Record<string, number> = { BTC: 3.5, ETH: 3.5, SOL: 4.0, AVAX: 11.5, XRP: 12.0, BNB: 4.2, DOGE: 3.0 };
+      const premiumMap: Record<string, number> = { BTC: 1.4, ETH: 1.4, SOL: 1.3, AVAX: 0.8, XRP: 0.75, BNB: 1.3, DOGE: 1.2 };
       const spread = spreadMap[asset] ?? 4.5;
       const premium = premiumMap[asset] ?? 1.2;
       const strike = Math.round((ind.latestClose * 0.97) * 100) / 100;

@@ -3,7 +3,7 @@ import { getMarketData } from "../api/client";
 import { fmtUsd } from "../lib/format";
 import AssetIcon from "./AssetIcon";
 
-const ASSETS = ["ETH", "BTC", "SOL", "AVAX", "XRP", "BNB"];
+const ASSETS = ["ETH", "BTC", "SOL", "AVAX", "XRP", "BNB", "DOGE"];
 
 export default function MarketPrices() {
   const [prices, setPrices] = useState<Record<string, number>>({});

@@ -37,7 +37,7 @@ def test_compliant_buy_put_passes_all_gates():
 
 
 def test_unknown_underlying_rejected():
-    result = evaluate_thetanuts_trade(**base_kwargs(underlying_symbol="DOGE"))
+    result = evaluate_thetanuts_trade(**base_kwargs(underlying_symbol="UNKNOWN"))
     assert result["decision"] == "BLOCKED"
     assert "underlying_rejected" in result["blockers"]
 
