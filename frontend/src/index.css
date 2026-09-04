@@ -1,0 +1,310 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Thetanuts Shariah Copilot — "Institutional Midnight Desk"
+   Design tokens
+   ============================================================ */
+
+@layer base {
+  :root {
+    /* Base surfaces — deep near-black navy */
+    --bg-app: #07090d;
+    --bg-surface: #0d1117;
+    --bg-surface-2: #11161d;
+    --bg-elevated: #161c25;
+    --bg-hover: #1c2430;
+    --bg-active: #141a22;
+
+    /* Hairline borders */
+    --border-subtle: #1c242f;
+    --border-strong: #2a3542;
+    --border-faint: #141a22;
+
+    /* Text */
+    --text-primary: #e8edf2;
+    --text-secondary: #a7b1bd;
+    --text-muted: #6b7686;
+    --text-faint: #4a5260;
+
+    /* Shariah / copilot accent — restrained teal/aqua */
+    --accent: #2dd4bf;
+    --accent-strong: #5eead4;
+    --accent-dim: #114f47;
+    --accent-ink: #0f3d37;
+
+    /* System state — color reserved for state only */
+    --pass: #34d399;      /* emerald — ready */
+    --pass-bg: #0d2a20;
+    --pass-border: #14532d;
+    --reject: #fb7185;    /* red — blocked */
+    --reject-bg: #33111a;
+    --reject-border: #7f1d2d;
+    --warn: #fbbf24;      /* amber — clarification */
+    --warn-bg: #2b2006;
+    --warn-border: #713f12;
+    --info: #60a5fa;      /* blue — neutral */
+    --info-bg: #0e1b2e;
+    --info-border: #1e3a5f;
+
+    /* Type */
+    --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", "SFMono-Regular", "Roboto Mono", Menlo, monospace;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg-app);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-variant-numeric: tabular-nums;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 4px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--text-faint);
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::selection {
+    background: var(--accent-dim);
+    color: var(--text-primary);
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  /* Numeric values always tabular, center for financial figures */
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  /* Surfaces */
+  .surface {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+  }
+  .surface-2 {
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+  }
+  .surface-interactive {
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+  .surface-interactive:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-strong);
+  }
+
+  /* State-bordered verdict cards */
+  .verdict-card {
+    border-radius: 10px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+  }
+  .verdict-ready {
+    border-color: var(--pass-border);
+    background: linear-gradient(180deg, var(--pass-bg), var(--bg-surface) 40%);
+  }
+  .verdict-rejected {
+    border-color: var(--reject-border);
+    background: linear-gradient(180deg, var(--reject-bg), var(--bg-surface) 40%);
+  }
+  .verdict-clarify {
+    border-color: var(--warn-border);
+    background: linear-gradient(180deg, var(--warn-bg), var(--bg-surface) 40%);
+  }
+
+  /* State badges — icon + text, never color alone */
+  .state-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.6;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .state-pass {
+    color: var(--pass);
+    background: var(--pass-bg);
+    border-color: var(--pass-border);
+  }
+  .state-reject {
+    color: var(--reject);
+    background: var(--reject-bg);
+    border-color: var(--reject-border);
+  }
+  .state-warn {
+    color: var(--warn);
+    background: var(--warn-bg);
+    border-color: var(--warn-border);
+  }
+  .state-info {
+    color: var(--info);
+    background: var(--info-bg);
+    border-color: var(--info-border);
+  }
+
+  /* Labels */
+  .label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+  }
+
+  /* Inputs */
+  .field {
+    width: 100%;
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: 9px;
+    color: var(--text-primary);
+    padding: 10px 14px;
+    font-size: 13px;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+    outline: none;
+  }
+  .field::placeholder {
+    color: var(--text-faint);
+  }
+  .field:focus {
+    border-color: var(--accent-dim);
+    box-shadow: 0 0 0 3px rgb(45 212 191 / 0.12);
+  }
+  .field:hover:not(:focus) {
+    border-color: var(--border-strong);
+  }
+
+  /* Primary / action buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 16px;
+    border: 1px solid transparent;
+    transition: background 120ms ease, border-color 120ms ease,
+      color 120ms ease, opacity 120ms ease;
+    white-space: nowrap;
+  }
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: var(--accent-ink);
+    color: var(--accent-strong);
+    border-color: var(--accent-dim);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+  }
+  .btn-execute {
+    background: var(--pass-bg);
+    color: var(--pass);
+    border-color: var(--pass-border);
+  }
+  .btn-execute:hover:not(:disabled) {
+    background: var(--pass-border);
+    border-color: var(--pass);
+    color: #d1fae5;
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border-color: var(--border-subtle);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
+
+  /* Suggestion chip */
+  .chip {
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-surface-2);
+    color: var(--text-secondary);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-size: 12.5px;
+    transition: all 120ms ease;
+    text-align: left;
+  }
+  .chip:hover {
+    border-color: var(--accent-dim);
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  /* Scrollable list hairline row */
+  .row {
+    border-bottom: 1px solid var(--border-faint);
+  }
+  .row:last-child {
+    border-bottom: none;
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    border-radius: 6px;
+    background: linear-gradient(
+      90deg,
+      var(--bg-surface-2) 25%,
+      var(--bg-hover) 50%,
+      var(--bg-surface-2) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+}
