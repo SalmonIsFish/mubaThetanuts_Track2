@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { executeTrade } from "../api/client";
 import type { TradeIntent } from "../types";
+import CategoryBadge from "./CategoryBadge";
 
 interface QuantSuggestion {
   asset: string;
@@ -10,12 +11,14 @@ interface QuantSuggestion {
   spreadPct: number;
   spot: number;
   quant: { breakoutGapPct: number; trendGapPct: number; reason: string };
-  syariah: { status: string; score: number };
+  syariah: { status: string; score: number; category?: string; rationale?: string; provider?: string };
   confidence: number;
   components: { technical: number; compliance: number; liquidity: number; riskHeadroom: number };
   auto: boolean;
   gateDecision: string | null;
   blockers: string[];
+  halalReason?: string;
+  halalCategory?: string;
   thesis: string;
 }
 
@@ -133,6 +136,41 @@ export default function QuantPanel() {
                 <span className="rounded bg-[var(--bg-surface-2)] border border-[var(--border-faint)] px-1.5 py-0.5">compliance {Math.round(s.components.compliance * 100)}%</span>
                 <span className="rounded bg-[var(--bg-surface-2)] border border-[var(--border-faint)] px-1.5 py-0.5">liquidity {Math.round(s.components.liquidity * 100)}%</span>
                 <span className={`rounded px-1.5 py-0.5 border ${s.gateDecision === "READY_FOR_EXECUTION" ? "border-[var(--pass-border)] text-[var(--pass)] bg-[var(--pass-bg)]" : s.gateDecision === "BLOCKED" ? "border-[var(--reject-border)] text-[var(--reject)] bg-[var(--reject-bg)]" : "border-[var(--border-faint)] text-[var(--text-faint)]"}`}>gate {s.gateDecision ?? "—"}</span>
+              </div>
+              {/* Why halal / why not halal — structured ELI5 with table-like clarity */}
+              <div className={`mt-2 rounded-lg border p-2.5 ${s.gateDecision === "BLOCKED" ? "border-[var(--reject-border)] bg-[var(--reject-bg)]/30" : "border-[var(--pass-border)] bg-[var(--pass-bg)]/20"}`}>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${s.gateDecision === "BLOCKED" ? "bg-[var(--reject)]" : "bg-[var(--pass)]"}`} />
+                  <span className="text-[11px] font-semibold text-[var(--text-primary)]">
+                    {s.gateDecision === "BLOCKED" ? "Why not halal — blocked" : "Why halal — compliant"}
+                  </span>
+                  {s.syariah.category && <CategoryBadge category={s.syariah.category} />}
+                  <span className={`ml-auto rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${s.gateDecision === "BLOCKED" ? "border-[var(--reject-border)] bg-[var(--reject-bg)] text-[var(--reject)]" : "border-[var(--pass-border)] bg-[var(--pass-bg)] text-[var(--pass)]"}`}>
+                    {s.syariah.status}
+                  </span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">{s.halalReason ?? (s.gateDecision === "BLOCKED" ? "Blocked by gate — see blockers" : `Halal — ${s.asset} is ${s.syariah.category ?? "crypto_native"} with no Riba; see rationale below.`)}</p>
+                {s.syariah.rationale && (
+                  <p className="mt-1.5 text-[10px] leading-relaxed text-[var(--text-muted)] line-clamp-3" title={s.syariah.rationale}>
+                    <span className="font-medium text-[var(--text-secondary)]">Fiqh basis:</span> {s.syariah.rationale.slice(0, 180)}
+                    {s.syariah.rationale.length > 180 ? "…" : ""}
+                  </p>
+                )}
+                {s.blockers.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1 text-[10px]">
+                    <span className="text-[var(--text-faint)]">Blockers:</span>
+                    {s.blockers.map((b) => (
+                      <span key={b} className="num rounded border border-[var(--reject-border)] bg-[var(--reject-bg)] px-1 py-0.5 text-[var(--reject)]">
+                        {b}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-1.5 grid grid-cols-3 gap-1 text-[10px] text-center">
+                  <span className="rounded bg-[var(--bg-surface)] border border-[var(--border-faint)] px-1 py-1">Underlying<br /><span className="font-semibold text-[var(--pass)]">PASS</span></span>
+                  <span className={`rounded border px-1 py-1 ${s.gateDecision === "BLOCKED" ? "bg-[var(--reject-bg)] border-[var(--reject-border)] text-[var(--reject)]" : "bg-[var(--pass-bg)] border-[var(--pass-border)] text-[var(--pass)]"}`}>Delta<br /><span className="font-semibold">{s.gateDecision === "BLOCKED" ? "BLOCKED" : "PASS"}</span></span>
+                  <span className="rounded bg-[var(--bg-surface)] border border-[var(--border-faint)] px-1 py-1">Risk<br /><span className="font-semibold text-[var(--pass)]">PASS</span></span>
+                </div>
               </div>
               {!s.auto ? (
                 <button

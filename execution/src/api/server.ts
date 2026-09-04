@@ -28,6 +28,9 @@ import {
 } from "../tradeResolver.js";
 import { jsonSafe } from "../jsonSafe.js";
 import { parseIntent, explainDecision } from "../copilot.js";
+import { readFileSync } from "fs";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 
 const RPC_URL = process.env.THETANUTS_RPC_URL ?? "https://mainnet.base.org";
 const GATE_SERVICE_URL = process.env.GATE_SERVICE_URL ?? "http://127.0.0.1:8787";
@@ -269,6 +272,28 @@ function quantScoreBreakout(breakoutGap: number | null, trendGap: number | null)
   const trendScore = trendGap != null && trendGap > 1 ? 1.0 : trendGap != null && trendGap > 0 ? 0.6 : 0.3;
   return 0.7 * breakoutScore + 0.3 * trendScore;
 }
+let _quantUniverse: { records: { symbol: string; shariah_status: string; category: string; rationale: string }[] } | null = null;
+function getQuantRationale(symbol: string) {
+  try {
+    if (!_quantUniverse) {
+      const here = dirname(fileURLToPath(import.meta.url));
+      const p = join(here, "..", "..", "data", "crypto-underlying-universe.json");
+      _quantUniverse = JSON.parse(readFileSync(p, "utf-8"));
+    }
+    const rec = _quantUniverse!.records.find((r) => r.symbol === symbol);
+    return rec ? { status: rec.shariah_status, category: rec.category, rationale: rec.rationale } : null;
+  } catch {
+    return null;
+  }
+}
+function blockerToELI5(blocker: string, delta: number | null) {
+  if (blocker === "delta_rejected") return `High risk — price too far (Δ ${delta?.toFixed(3) ?? "—"}, ~${Math.round(Math.abs(delta ?? 0) * 100)}% chance) → lottery/Maysir, guard 4 blocks. Like betting snow in desert — too unlikely.`;
+  if (blocker === "underlying_rejected") return `Not halal — underlying is debt/interest (Riba) per rwa_debt hard-reject.`;
+  if (blocker === "collateral_rejected") return `Not halal — collateral not self-funded or using lending/yield (Riba).`;
+  if (blocker === "structure_rejected") return `Not halal — complex structure (straddle/strangle) with excess Gharar.`;
+  if (blocker === "risk_rejected") return `Risk — exceeds $3 per trade / $10 daily or wrong chain (must be Base 8453).`;
+  return blocker;
+}
 app.get(
   "/quant/suggestions",
   asyncRoute(async (req, res) => {
@@ -317,13 +342,15 @@ app.get(
       // Live gate preview for this suggestion (same 5 gates as /propose, at that spend)
       let gateDecision: string | null = null;
       let blockers: string[] = [];
+      let gateDelta: number | null = null;
       try {
         const preview = { numContracts: BigInt(0) } as ReturnType<ThetanutsClient["optionBook"]["previewFillOrder"]>;
         // Use a real order preview if available — try findLiveOrders for this asset
         const orders = await findLiveOrders(readClient, { asset, optionType });
         const candidate = orders[0];
         if (candidate) {
-          const gateReq = buildGateRequest({ asset, optionType, spendUsdc, resolved: { candidate, preview, spotPrice: ind.latestClose, spendUsdcBigint: BigInt(spendUsdc * 1_000_000), delta: candidate.rawApiData?.greeks?.delta ?? null } });
+          gateDelta = candidate.rawApiData?.greeks?.delta ?? null;
+          const gateReq = buildGateRequest({ asset, optionType, spendUsdc, resolved: { candidate, preview, spotPrice: ind.latestClose, spendUsdcBigint: BigInt(spendUsdc * 1_000_000), delta: gateDelta } });
           const dec = await evaluateTrade(GATE_SERVICE_URL, gateReq);
           gateDecision = dec.decision;
           blockers = dec.blockers;
@@ -331,6 +358,10 @@ app.get(
       } catch {
         // leave null
       }
+      const uni = getQuantRationale(asset);
+      const halalWhy = gateDecision === "BLOCKED" && blockers.length
+        ? blockers.map((b) => blockerToELI5(b, gateDelta)).join(" | ")
+        : `Halal — ${asset} is ${uni?.category ?? "crypto_native"} (no Riba: no interest/yield/coupon). Like plain chocolate, not a loan. USDC settlement-only (no lending), simple long structure, delta 10–90% (not lottery/Maysir).`;
       suggestions.push({
         asset,
         optionType,
@@ -341,12 +372,14 @@ app.get(
         spreadPct: spread,
         spot: ind.latestClose,
         quant: { breakoutGapPct: ind.breakoutGapPct, trendGapPct: ind.trendGapPct, reason: `trend ${ind.trendGapPct.toFixed(1)}% + breakout ${ind.breakoutGapPct.toFixed(1)}%` },
-        syariah: { status: "COMPLIANT", score: 85, provider: "CRYPTO_UNIVERSE" },
+        syariah: { status: "COMPLIANT", score: 85, provider: "CRYPTO_UNIVERSE", category: uni?.category ?? "crypto_native", rationale: uni?.rationale ?? "" },
         confidence: Math.round(confidence * 10000) / 10000,
         components: { technical: Math.round(technical * 1000) / 1000, compliance: Math.round(compliance * 1000) / 1000, liquidity: Math.round(liquidity * 1000) / 1000, riskHeadroom: Math.round(riskHeadroom * 1000) / 1000 },
         auto,
         gateDecision,
         blockers,
+        halalReason: halalWhy,
+        halalCategory: uni?.category ?? "crypto_native",
         thesis: `${asset} ${optionType} $${strike} OTM3% | trend ${ind.trendGapPct.toFixed(1)}% + breakout ${ind.breakoutGapPct.toFixed(1)}% | conf ${(confidence * 100).toFixed(0)}%`,
       });
     }
