@@ -334,6 +334,60 @@ app.post(
         merged.asset !== prior.asset ||
         merged.optionType !== prior.optionType ||
         merged.spendUsdc !== prior.spendUsdc;
+
+      // Enriched clarification for "which of live market is compliant" queries.
+      // Generic "What asset?" is unhelpful when the user explicitly asked to
+      // see the live book's compliance. Surface the actual screened results
+      // (same gate chain as a trade) instead of a blind list, so the user can
+      // pick from real READY rows rather than guessing. Only when the missing
+      // field is the asset itself and the current prompt signals an info scan.
+      const looksLikeComplianceScan =
+        !merged.asset &&
+        /live market|which.*compliant|syariah|shariah|compliant/i.test(prompt) &&
+        madeProgress; // only if this turn actually contributed (amount/optionType), not a stale repeat
+      if (looksLikeComplianceScan) {
+        const fetched = await findLiveOrders(readClient, { vanillaOnly: true });
+        const sample = interleaveByAsset(fetched, readClient, 12);
+        const screened = await Promise.all(
+          sample.map(async (order) => {
+            const orderAsset = assetForOrder(readClient, order);
+            const orderType: OptionType = order.rawApiData?.isCall ? "call" : "put";
+            if (!orderAsset) return null;
+            const req = buildGateRequest({
+              asset: orderAsset,
+              optionType: orderType,
+              spendUsdc: merged.spendUsdc ?? SCREENING_NOTIONAL_USD,
+              resolved: {
+                candidate: order,
+                preview: { numContracts: BigInt(0) } as ReturnType<ThetanutsClient["optionBook"]["previewFillOrder"]>,
+                spotPrice: Number(order.order.strikes![0]) / 1e8,
+                spendUsdcBigint: BigInt((merged.spendUsdc ?? SCREENING_NOTIONAL_USD) * 1_000_000),
+                delta: order.rawApiData?.greeks?.delta ?? null,
+              },
+            });
+            const d = await evaluateTrade(GATE_SERVICE_URL, req);
+            return { asset: orderAsset, optionType: orderType, strike: Number(order.order.strikes![0]) / 1e8, decision: d.decision };
+          }),
+        );
+        const ready = (screened.filter(Boolean) as { asset: string; optionType: string; strike: number; decision: string }[]).filter(
+          (s) => s.decision === "READY_FOR_EXECUTION",
+        );
+        const blockedCount = (screened.filter(Boolean) as { decision: string }[]).filter((s) => s.decision === "BLOCKED").length;
+        const spendNote = merged.spendUsdc != null ? ` for $${merged.spendUsdc}` : "";
+        const list = ready.length
+          ? ready
+              .slice(0, 6)
+              .map((r) => `${r.asset} ${r.optionType} $${r.strike.toFixed(0)} → READY`)
+              .join(", ")
+          : "none READY at this exact spend — try $2";
+        const enriched =
+          `Live screened${spendNote} (${ready.length} READY / ${blockedCount} BLOCKED among sampled live orders): ${list}. ` +
+          `I don't pick for you — tell me which asset + put/call to buy${spendNote} and I'll run the full 5-gate check. ` +
+          `E.g. "Buy ETH put with ${merged.spendUsdc ?? 2} dollars" or "Buy AVAX call with ${merged.spendUsdc ?? 2} dollars".`;
+        res.json({ status: "clarification_needed", actionable_data: null, ai_explanation: enriched, partial_intent: merged });
+        return;
+      }
+
       res.json({
         status: "clarification_needed",
         actionable_data: null,
