@@ -264,6 +264,7 @@ function readStringField(obj: unknown, path: string[]): string | undefined {
 export async function explainDecision(
   intent: { asset: SupportedAsset; optionType: OptionType; spendUsdc: number },
   decision: GateDecisionForExplanation,
+  originalPrompt?: string,
 ): Promise<string> {
   const underlyingSymbol = readStringField(decision.gate_summary, ["underlying_screen", "symbol"]) ?? intent.asset;
   const collateralSymbol =
@@ -275,6 +276,24 @@ export async function explainDecision(
     collateral: getRationale(collateralSymbol),
   };
 
+  const wantsELI5 = originalPrompt ? /like.*5|5 years|eli5|explain.*simple|explain.*child/i.test(originalPrompt) : false;
+  const systemBase =
+    "You explain a Shariah compliance/risk gate's verdict to a non-technical user in 3-5 plain-language " +
+    "sentences. You are given the exact JSON the gate produced, PLUS the reviewed Shariah rationale on " +
+    "file for the specific tokens involved (from a dataset the gate itself screens against). Use that " +
+    "rationale to explain the actual fiqh reasoning (Riba/interest, Gharar/uncertainty, Maysir/gambling) " +
+    "behind the verdict where it's provided -- don't just restate 'compliant' or 'rejected', say why, in " +
+    "the dataset's own terms. Ground every claim in gate_summary/blockers or the provided rationale text " +
+    "only -- if no rationale is provided for a token, don't invent one; explain from gate_summary alone. " +
+    "If decision is READY_FOR_EXECUTION, say so plainly and don't manufacture extra warnings. If BLOCKED, " +
+    "name the specific gate(s) that failed and their reason, grounded in the rationale text when present.";
+  const systemELI5 =
+    "Explain like the user is 5 years old, using a simple story (e.g. chocolate ice cream, lottery ticket, silly price tag). " +
+    "You are given the exact JSON the gate produced plus the reviewed Shariah rationale for the tokens. " +
+    "Ground every claim in gate_summary/blockers or that rationale only — never invent fiqh. " +
+    "In 3-5 very short sentences, say why the trade passed or why guard 4 (silly price = Maysir gambling) blocked it, and why low risk = compliant vs high risk = not compliant. " +
+    "Use 🟢 for READY/compliant/low risk and 🔴 for BLOCKED/not compliant/high risk if you list examples. Keep it fun but truthful.";
+
   const completion = await getClient(EXPLAIN_CONFIG).chat.completions.create({
     model: EXPLAIN_CONFIG.model,
     max_tokens: 400,
@@ -282,16 +301,7 @@ export async function explainDecision(
     messages: [
       {
         role: "system",
-        content:
-          "You explain a Shariah compliance/risk gate's verdict to a non-technical user in 3-5 plain-language " +
-          "sentences. You are given the exact JSON the gate produced, PLUS the reviewed Shariah rationale on " +
-          "file for the specific tokens involved (from a dataset the gate itself screens against). Use that " +
-          "rationale to explain the actual fiqh reasoning (Riba/interest, Gharar/uncertainty, Maysir/gambling) " +
-          "behind the verdict where it's provided -- don't just restate 'compliant' or 'rejected', say why, in " +
-          "the dataset's own terms. Ground every claim in gate_summary/blockers or the provided rationale text " +
-          "only -- if no rationale is provided for a token, don't invent one; explain from gate_summary alone. " +
-          "If decision is READY_FOR_EXECUTION, say so plainly and don't manufacture extra warnings. If BLOCKED, " +
-          "name the specific gate(s) that failed and their reason, grounded in the rationale text when present.",
+        content: wantsELI5 ? systemELI5 : systemBase,
       },
       {
         role: "user",
