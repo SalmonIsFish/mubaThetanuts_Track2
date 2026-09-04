@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import CopilotWorkspace from "./CopilotWorkspace";
+import DemoMode from "./DemoMode";
 import MarketPrices from "./MarketPrices";
 import OrdersPanel from "./OrdersPanel";
 import QuantPanel from "./QuantPanel";
@@ -8,7 +9,7 @@ import ComplianceTicker from "./ComplianceTicker";
 import { healthCheck } from "../api/client";
 import type { GateSummary } from "../types";
 
-type View = "copilot";
+type View = "copilot" | "demo";
 
 interface LatestGate {
   gateSummary: GateSummary;
@@ -25,16 +26,21 @@ export default function AppShell() {
     setGateRevision((r) => r + 1);
   }
 
+  const isDemo = view === "demo";
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden">
       {/* Persistent compliance masthead -- visible before a single message
           is sent, so the pipeline is the first thing anyone sees. */}
-      <header className="shrink-0 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-2.5">
-        <GateSpine
-          gateSummary={latestGate?.gateSummary ?? null}
-          decision={latestGate?.decision ?? null}
-          revision={gateRevision}
-        />
+      <header
+        className={`shrink-0 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 ${isDemo ? "py-3" : "py-2.5"}`}
+      >
+        <div className={isDemo ? "[&_*]:text-[13px] [&_span]:font-semibold" : ""}>
+          <GateSpine
+            gateSummary={latestGate?.gateSummary ?? null}
+            decision={latestGate?.decision ?? null}
+            revision={gateRevision}
+          />
+        </div>
       </header>
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -43,11 +49,11 @@ export default function AppShell() {
 
         {/* Main workspace */}
         <main className="flex-1 min-w-0 overflow-hidden">
-          <CopilotWorkspace onGateResult={onGateResult} />
+          {isDemo ? <DemoMode onGateResult={onGateResult} /> : <CopilotWorkspace onGateResult={onGateResult} />}
         </main>
 
-        {/* Right Desk panel */}
-        <DeskPanel />
+        {/* Right Desk panel — hidden in Demo Mode because DemoMode already has 3-column layout */}
+        {!isDemo && <DeskPanel />}
       </div>
 
       <ComplianceTicker />
@@ -70,6 +76,12 @@ function SideRail({ view, onView }: { view: View; onView: (v: View) => void }) {
         onClick={() => onView("copilot")}
         label="Copilot"
         icon="💬"
+      />
+      <RailButton
+        active={view === "demo"}
+        onClick={() => onView("demo")}
+        label="Demo"
+        icon="📊"
       />
 
       <div className="mt-auto">
