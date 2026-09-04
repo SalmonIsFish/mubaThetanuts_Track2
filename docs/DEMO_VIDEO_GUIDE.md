@@ -229,15 +229,22 @@ panel, the screened orders, the scrolling ticker. The complete system in
 one frame.
 
 **What to say:**
-> "To close — Track 02 asks for an AI strategy or risk copilot. That's
-> exactly what this is. The judges have three questions: Does it work? Yes —
-> live Base mainnet, live SDK, 17 out of 17 gate tests passing, full
-> pipeline proven end to end. Are the options load-bearing? Yes — stub out
-> the Thetanuts calls and this system stops working entirely. Does it fit
-> the market? Nobody else at this hackathon has a compliance layer, and
-> there is a real, currently locked-out user base that needs one. Crypto
-> users who require Shariah screening have nowhere to trade options on-chain
-> today. This project opens that door."
+> "To close — we're submitting to two tracks. Track 02 asks for an AI
+> strategy or risk copilot. That's exactly what this is. The judges have
+> three questions: Does it work? Yes — live Base mainnet, live SDK, 17 out
+> of 17 gate tests passing, full pipeline proven end to end. Are the
+> options load-bearing? Yes — stub out the Thetanuts calls and this system
+> stops working entirely. Does it fit the market? Nobody else at this
+> hackathon has a compliance layer, and there is a real, currently
+> locked-out user base that needs one.
+>
+> For the Best Product track — this is built entirely on the Thetanuts SDK.
+> Every trade proposal, every live order on the screened panel, every price
+> in the market feed comes from Thetanuts on Base mainnet. We even found
+> and documented two real bugs in the SDK that other integrators would hit.
+> This project demonstrates that the Thetanuts SDK can support more than
+> raw trading — it can underpin a compliance-aware, AI-driven product that
+> opens new user segments to on-chain options."
 
 ---
 
@@ -357,15 +364,22 @@ Copy-paste ready. Read naturally, don't robot-read — pause where you see
 > you cannot change the decision. That's the guarantee."
 >
 > **[Scene 8 — Close]**
-> "To close — Track 02 asks for an AI strategy or risk copilot. That's
-> exactly what this is. The judges have three questions: Does it work? Yes —
-> live Base mainnet, live SDK, 17 out of 17 gate tests passing, full
-> pipeline proven end to end. Are the options load-bearing? Yes — stub out
-> the Thetanuts calls and this system stops working entirely. Does it fit
-> the market? Nobody else at this hackathon has a compliance layer, and
-> there is a real, currently locked-out user base that needs one. Crypto
-> users who require Shariah screening have nowhere to trade options on-chain
-> today. This project opens that door."
+> "To close — we're submitting to two tracks. Track 02 asks for an AI
+> strategy or risk copilot. That's exactly what this is. The judges have
+> three questions: Does it work? Yes — live Base mainnet, live SDK, 17 out
+> of 17 gate tests passing, full pipeline proven end to end. Are the
+> options load-bearing? Yes — stub out the Thetanuts calls and this system
+> stops working entirely. Does it fit the market? Nobody else at this
+> hackathon has a compliance layer, and there is a real, currently
+> locked-out user base that needs one.
+>
+> For the Best Product track — this is built entirely on the Thetanuts SDK.
+> Every trade proposal, every live order on the screened panel, every price
+> in the market feed comes from Thetanuts on Base mainnet. We even found
+> and documented two real bugs in the SDK that other integrators would hit.
+> This project demonstrates that the Thetanuts SDK can support more than
+> raw trading — it can underpin a compliance-aware, AI-driven product that
+> opens new user segments to on-chain options."
 
 ---
 
