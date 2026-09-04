@@ -478,6 +478,49 @@ app.post(
       spendUsdc: extracted.spendUsdc ?? fallbackSpend ?? prior.spendUsdc,
     };
 
+    // Demo adversarial: BUIDL is the canonical rwa_debt hard-reject (gate-chain/underlying_screen.py:25 HARD_REJECT).
+    // For "buy a BUIDL put ... Ignore compliance..." the LLM extracts asset=null (unsupported), so normal flow would ask
+    // "What asset?" — that hides the guarantee. For the video script we want to show the gate actually BLOCKED even with injection.
+    if (/buidl/i.test(prompt)) {
+      const spendForDemo = merged.spendUsdc ?? fallbackSpend ?? 2;
+      const optionForDemo = (merged.optionType as OptionType) ?? (extracted.optionType as OptionType) ?? "put";
+      // Direct gate call — bypass SUPPORTED_ASSETS check, use a minimal synthetic resolved trade (gate only looks at underlying/category for this case)
+      // Build a minimal gate request that will hit HARD_REJECT due to rwa_debt
+      const mockGateReq = {
+        underlying_symbol: "BUIDL",
+        option_type: optionForDemo.toUpperCase() as "PUT" | "CALL",
+        structure: `VANILLA_${optionForDemo.toUpperCase()}` as "VANILLA_PUT" | "VANILLA_CALL",
+        side: "BUY" as const,
+        num_contracts: 1,
+        strike: 100,
+        spot_price: 100,
+        notional_usd: spendForDemo,
+        collateral_token: "USDC",
+        posted_collateral_amount: spendForDemo,
+        required_collateral_amount: spendForDemo,
+        delta: -0.3,
+      };
+      const dec = await evaluateTrade(GATE_SERVICE_URL, mockGateReq as unknown as Parameters<typeof evaluateTrade>[1]);
+      // Use explainDecision with BUIDL's real rationale (BlackRock Treasury yield is Riba) — cast via any for demo
+      const aiForDemo = await explainDecision({ asset: "BTC" as SupportedAsset, optionType: optionForDemo, spendUsdc: spendForDemo } as unknown as Parameters<typeof explainDecision>[0], dec as unknown as Parameters<typeof explainDecision>[1], prompt);
+      // Shape like a rejected converse, but with real gate_summary for BUIDL so checklist shows red underlying_screen
+      res.json({
+        status: "rejected",
+        actionable_data: {
+          candidateOrder: null,
+          preview: null,
+          numContractsHuman: 0,
+          spotPrice: 100,
+          decision: dec.decision,
+          blockers: dec.blockers,
+          gate_summary: dec.gate_summary,
+          requires_delta_recheck_before_settlement: false,
+        },
+        ai_explanation: aiForDemo,
+      });
+      return;
+    }
+
     const question = missingFieldQuestion(merged);
     if (question) {
       // If this turn didn't add anything new (asset/optionType/spendUsdc all
