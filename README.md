@@ -55,7 +55,7 @@ not just a standalone product.
 
 **Live app:** https://amanahtrader.uk/thetanuts/ — `gate-chain` 8787 + `execution` 8790 live on VPS, frontend built with `VITE_BASE_PATH=/thetanuts/` + `VITE_API_BASE=/thetanuts/api`.
 
-**Video (90-sec):** https://youtu.be/REPLACE_WITH_UNLISTED — screen-record: `GET /market-data` live prices → `POST /propose {"asset":"ETH","optionType":"put","spendUsdc":2}` → `gate_summary` 5 gates `READY/BLOCKED` → `POST /converse "buy an AVAX call with 2 dollars"` → execution dry-run. Replace this placeholder before Sep 6 submission; judges use it as quick reference per Q&A.
+**Video (90-sec):** https://youtu.be/QqUoHEDs5Kw — screen-record: `GET /market-data` live prices → `POST /propose {"asset":"ETH","optionType":"put","spendUsdc":2}` → `gate_summary` 5 gates `READY/BLOCKED` → `POST /converse "buy an AVAX call with 2 dollars"` → execution dry-run. Replace this placeholder before Sep 6 submission; judges use it as quick reference per Q&A.
 
 **One-slide gate:** 5 gates in order `underlying_screen` → `collateral_gate` → `option_structure_gate` → `delta_gate` → `risk_checks` — only `READY_FOR_EXECUTION` (empty blockers) proceeds; unreachable gate = `BLOCKED` never silent pass (`execution/src/gateClient.ts:requireReadyForExecution`). See diagram below or `GateSpine` header.
 
