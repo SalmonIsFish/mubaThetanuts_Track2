@@ -146,6 +146,29 @@ function Rejected({ convo }: { convo: ConverseResponse }) {
   const proposal = convo.actionable_data;
   const blockers = proposal?.blockers ?? [];
 
+  // actionable_data is null in two very different situations: (a) the gate
+  // chain ran and rejected the trade (blockers/gate_summary present below),
+  // or (b) the trade never made it to the gate chain at all -- no live
+  // order or spot price to resolve against (see resolveTradeIntent). Only
+  // (a) is a Shariah/risk rejection; (b) says nothing about compliance and
+  // must not be framed as one, or a Shariah-compliant asset with no market
+  // maker yet reads as if it failed screening.
+  if (!proposal) {
+    return (
+      <div className="verdict-card verdict-clarify space-y-2 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="label">No Live Order Available</span>
+          <StatusBadge kind="warn" label="Not Resolved" icon="!" />
+        </div>
+        <p className="text-[13.5px] leading-relaxed text-[var(--text-secondary)]">
+          This trade never reached the Shariah / risk gates — there's currently no live
+          order (or price feed) to resolve it against. That's a market-liquidity gap,
+          not a compliance rejection.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="verdict-card verdict-rejected space-y-3 p-4">
       <div className="flex items-center justify-between gap-2">
@@ -157,7 +180,7 @@ function Rejected({ convo }: { convo: ConverseResponse }) {
         This trade cannot proceed. One or more Shariah / risk gates did not pass.
       </p>
 
-      {proposal?.gate_summary && (
+      {proposal.gate_summary && (
         <GateChecklist
           gateSummary={proposal.gate_summary}
           blockers={blockers}
@@ -167,7 +190,7 @@ function Rejected({ convo }: { convo: ConverseResponse }) {
 
       {blockers.length > 0 && <BlockerList blockers={blockers} />}
 
-      {!proposal?.gate_summary && blockers.length === 0 && (
+      {!proposal.gate_summary && blockers.length === 0 && (
         <p className="text-xs text-[var(--text-muted)]">
           No further gate details were returned by the backend.
         </p>
