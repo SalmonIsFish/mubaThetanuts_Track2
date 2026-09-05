@@ -1,8 +1,55 @@
 # AI Strategy & Shariah Risk Copilot — Thetanuts on Base
 
-Muba Hacks 2026, Track 02 (AI x Options). An AI copilot that recommends
-Thetanuts option structures on Base mainnet, gated by a deterministic
-Shariah + risk chain before any transaction is signed.
+Muba Hacks 2026, Track 02 (AI x Options) and Best Product Built on the
+Thetanuts SDK. An AI copilot that recommends Thetanuts option structures on
+Base mainnet, gated by a deterministic Shariah + risk chain before any
+transaction is signed.
+
+## The problem
+
+No DeFi protocol screens on-chain options for Islamic finance principles —
+interest (**Riba**), speculation (**Maysir**), or uncertain contracts
+(**Gharar**). Anyone who requires Shariah compliance has nowhere to trade
+options on-chain today; that entire user base is locked out.
+
+At the same time, every AI trading copilot on the market makes LLM-driven
+trading decisions with no compliance gate. An AI that recommends options
+without a deterministic risk check is a liability — it can suggest haram
+instruments, deep out-of-the-money "lottery ticket" strikes, or oversized
+positions with no guardrails.
+
+## The solution
+
+This copilot recommends Thetanuts option structures on Base mainnet, but
+the LLM never makes the compliance call. Every proposed trade must pass
+five independent, deterministic gates before anything is signed
+(`gate-chain/gate_coordinator.py`):
+
+1. **Underlying screen** — the asset must be Shariah-reviewed and marked
+   compliant in `data/crypto-underlying-universe.json`. Missing or
+   unmarked data is a reject, never a silent pass.
+2. **Collateral gate** — collateral must be self-funded (not borrowed or
+   leveraged) and itself Shariah-screened.
+3. **Option structure gate** — simple, fully-paid long positions only. No
+   naked writing, no multi-leg structures.
+4. **Delta gate** — bounds `abs(delta)` to a 0.10–0.90 band, so deep
+   out-of-the-money "lottery ticket" strikes (Maysir) are rejected even
+   when the underlying and structure are fine.
+5. **Risk checks** — hard USD notional caps, daily order-count caps, and
+   chain ID verification (Base mainnet, 8453, only).
+
+A trade proceeds only when all five return `PASS`
+(`READY_FOR_EXECUTION`). If any gate rejects — or the gate service is
+unreachable — the trade is `BLOCKED`. No exceptions, no LLM override; see
+`requireReadyForExecution` in `execution/src/gateClient.ts`.
+
+## Who this is for
+
+**Primary:** crypto users who need Shariah screening and currently have
+zero on-chain options venues they can use. **Secondary:** DeFi protocols
+and DAOs that want compliance rails without building this gate chain
+themselves — it's built as infrastructure other teams can sit on top of,
+not just a standalone product.
 
 ## Demo
 
