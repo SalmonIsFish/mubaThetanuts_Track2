@@ -666,7 +666,21 @@ app.post(
       return;
     }
 
-    const resolved = await resolveTradeIntent(readClient, validated);
+    // resolveTradeIntent throws on conditions that are normal conversational
+    // outcomes, not service failures -- e.g. no live order for that
+    // asset/side right now, or no live spot price. /converse's contract is
+    // to always answer in ai_explanation (see class comment above), so these
+    // must become a graceful "rejected" reply here rather than bubble to the
+    // generic error middleware, where the frontend has no way to tell "the
+    // API is down" apart from "the API answered: no liquidity right now".
+    let resolved: Awaited<ReturnType<typeof resolveTradeIntent>>;
+    try {
+      resolved = await resolveTradeIntent(readClient, validated);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Couldn't resolve that trade against live orders.";
+      res.json({ status: "rejected", actionable_data: null, ai_explanation: message, partial_intent: merged });
+      return;
+    }
     const gateRequest = buildGateRequest({ ...validated, resolved });
     const decision = await evaluateTrade(GATE_SERVICE_URL, gateRequest);
 
